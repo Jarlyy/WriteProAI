@@ -64,6 +64,17 @@ export function SaveText({ text, correctedText, errors = [] }: SaveTextProps) {
         ? correctedText.substring(0, maxTextLength) + "..."
         : correctedText || "";
 
+      // Генерируем заголовок из текста
+      const generateTitle = (text: string): string => {
+        // Берем первые 30 символов текста или первое предложение
+        const firstSentence = text.split(/[.!?]/, 1)[0].trim();
+        if (firstSentence.length <= 30) {
+          return firstSentence;
+        } else {
+          return firstSentence.substring(0, 30) + "...";
+        }
+      };
+
       // Создаем документ с оптимизированными данными
       const docData = {
         userId: user.uid,
@@ -76,6 +87,7 @@ export function SaveText({ text, correctedText, errors = [] }: SaveTextProps) {
         hasCorrections: Boolean(correctedText),
         saveDate: new Date().toISOString().split('T')[0], // Формат YYYY-MM-DD
         errorsCount: errors.length, // Добавляем количество ошибок
+        title: generateTitle(text) // Добавляем заголовок
       };
 
       console.log("Сохраняем документ в Firestore:", { userId: user.uid, textLength: text.length });

@@ -33,6 +33,7 @@ interface SavedText {
   textLength?: number;
   hasCorrections?: boolean;
   errorsCount?: number; // Добавляем поле для количества ошибок
+  title?: string; // Добавляем поле для заголовка
 }
 
 export default function SavedTextsPage() {
@@ -323,7 +324,8 @@ export default function SavedTextsPage() {
           saveDate: data.saveDate || new Date().toISOString().split('T')[0],
           textLength: data.textLength || 0,
           hasCorrections: data.hasCorrections || false,
-          errorsCount: data.errorsCount || 0 // Добавляем количество ошибок
+          errorsCount: data.errorsCount || 0, // Добавляем количество ошибок
+          title: data.title || data.originalText?.substring(0, 30) + (data.originalText?.length > 30 ? "..." : "") // Добавляем заголовок или генерируем его из текста
         };
       });
 
