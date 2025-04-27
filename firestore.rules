@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Правила для коллекции checkHistory
+    match /checkHistory/{document} {
+      // Разрешаем создание документов только авторизованным пользователям
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+
+      // Разрешаем чтение и удаление только владельцу документа
+      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+
+      // Запрещаем обновление документов (история не должна изменяться)
+      allow update: if false;
+    }
+
+    // Правила для коллекции savedTexts
+    match /savedTexts/{document} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Правила для коллекции texts (используется в компоненте SaveText)
+    match /texts/{document} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+  }
+}

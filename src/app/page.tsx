@@ -1,9 +1,24 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Textarea } from "@/components/ui/textarea";
-import { Button } from "@/components/ui/button";
-import { Moon, Sun, Copy, Check } from "lucide-react";
+import { Textarea } from "../components/ui/textarea";
+import { Button } from "../components/ui/button";
+import { Moon, Sun, Copy, Check, LogOut, X, Trash2, FileText, Clock, Home, User } from "lucide-react";
+import { SaveText } from "../components/firestore/save-text";
+import { signOut, onAuthStateChanged } from "firebase/auth";
+import { auth } from "../lib/firebase-client";
+import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { autoSaveCheckHistory } from "../lib/auto-save-history";
+import { useAuth } from "../contexts/auth-context";
+import Link from "next/link";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
 
 // Словарь популярных слов и их веса для улучшения исправления ошибок
 const POPULAR_WORDS = {
@@ -52,7 +67,7 @@ const CONTEXT_PHRASES = [
   // Можно добавить больше словосочетаний по мере необходимости
 ];
 
-export default function Home() {
+export default function HomePage() {
   const [text, setText] = useState("");
   const [checkedText, setCheckedText] = useState("");
   const [correctedText, setCorrectedText] = useState("");
@@ -63,6 +78,13 @@ export default function Home() {
   const [readabilityScore, setReadabilityScore] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
+
+  // Используем контекст авторизации с мемоизацией для предотвращения ненужных ререндеров
+  const { user, loading: authLoading } = useAuth();
+
+  // Мемоизируем пользователя, чтобы избежать ненужных ререндеров
+  const memoizedUser = useMemo(() => user, [user?.uid]);
 
   // Проверяем текущую тему при загрузке компонента
   useEffect(() => {
@@ -80,6 +102,8 @@ export default function Home() {
       document.documentElement.classList.remove("dark");
     }
   }, []);
+
+  // Состояние аутентификации отслеживается через контекст AuthProvider
 
   // Функция для переключения темы
   const toggleTheme = () => {
@@ -105,6 +129,59 @@ export default function Home() {
     setTimeout(() => {
       setIsCopied(false);
     }, 2000);
+  };
+
+  // Функция для очистки текста с подтверждением
+  const clearText = () => {
+    if (text.trim() === "") return; // Не показываем подтверждение, если текст пустой
+
+    // Используем простое подтверждение через window.confirm для избежания проблем с провайдером
+    if (window.confirm("Вы уверены, что хотите очистить текст? Все несохраненные данные будут потеряны.")) {
+      setText("");
+      setCheckedText("");
+      setCorrectedText("");
+      setErrors([]);
+      setCommaErrors([]);
+      setSpellingErrors([]);
+      setOtherErrors([]);
+      setReadabilityScore(0);
+    }
+  };
+
+  // Функция для быстрой очистки текста без подтверждения
+  const quickClearText = () => {
+    setText("");
+    setCheckedText("");
+    setCorrectedText("");
+    setErrors([]);
+    setCommaErrors([]);
+    setSpellingErrors([]);
+    setOtherErrors([]);
+    setReadabilityScore(0);
+  };
+
+  // Функция для открытия диалога подтверждения выхода
+  const handleSignOutClick = () => {
+    setIsSignOutDialogOpen(true);
+  };
+
+  // Функция для подтверждения выхода из аккаунта
+  const confirmSignOut = async () => {
+    try {
+      if (auth) {
+        await signOut(auth);
+        console.log("Пользователь вышел из системы");
+      }
+    } catch (error) {
+      console.error("Ошибка при выходе из аккаунта:", error);
+    } finally {
+      setIsSignOutDialogOpen(false);
+    }
+  };
+
+  // Функция для отмены выхода из аккаунта
+  const cancelSignOut = () => {
+    setIsSignOutDialogOpen(false);
   };
 
   // Функция для анализа контекста и выбора наиболее подходящего варианта исправления
@@ -374,6 +451,10 @@ export default function Home() {
   }, [checkedText, errors]);
 
   const checkText = async () => {
+    // Проверяем, авторизован ли пользователь
+    console.log("Проверка авторизации перед проверкой текста...");
+    console.log("Статус авторизации:", auth.currentUser ? "Авторизован" : "Не авторизован");
+
     try {
       // Сохраняем текущий текст как проверяемый
       setCheckedText(text);
@@ -531,6 +612,24 @@ export default function Home() {
       // Генерируем исправленный текст
       const corrected = generateCorrectedText(text, allErrors);
       setCorrectedText(corrected);
+
+      // Автоматически сохраняем историю проверки
+      console.log("Попытка автоматического сохранения истории проверки...");
+      console.log("Статус авторизации перед сохранением (из контекста):", user ? "Авторизован" : "Не авторизован");
+      console.log("Статус авторизации перед сохранением (из auth):", auth.currentUser ? "Авторизован" : "Не авторизован");
+
+      // Используем пользователя из контекста
+      if (user) {
+        console.log("Вызов функции autoSaveCheckHistory (пользователь из контекста)...");
+        try {
+          await autoSaveCheckHistory(text, corrected, allErrors, Math.round(data.readabilityScore * 10));
+          console.log("Функция autoSaveCheckHistory выполнена успешно");
+        } catch (saveError) {
+          console.error("Ошибка при сохранении истории:", saveError);
+        }
+      } else {
+        console.log("Пользователь не авторизован (из контекста), история не сохранена");
+      }
     } catch (error) {
       console.error('Ошибка:', error);
       // Сохраняем текущий текст как проверяемый даже при ошибке
@@ -551,298 +650,419 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Диалог подтверждения выхода */}
+      <ConfirmDialog
+        isOpen={isSignOutDialogOpen}
+        title="Выход из аккаунта"
+        message="Вы уверены, что хотите выйти из аккаунта?"
+        confirmText="Да, выйти"
+        cancelText="Отмена"
+        onConfirm={confirmSignOut}
+        onCancel={cancelSignOut}
+      />
+
       {/* Шапка страницы */}
       <header className="bg-blue-600 dark:bg-blue-800 text-white py-4 shadow-md">
-        <div className="container mx-auto px-4 flex justify-between items-center">
-          <h1 className="text-3xl font-bold">WriteProAI</h1>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={toggleTheme}
-            className="rounded-full bg-white/10 backdrop-blur-sm border-white/20 hover:bg-white/20 transition-all duration-300"
-            aria-label="Переключить тему"
-          >
-            {isDarkMode ? (
-              <Sun className="h-5 w-5 text-yellow-400 transition-transform hover:rotate-45" />
-            ) : (
-              <Moon className="h-5 w-5 text-white transition-transform hover:-rotate-12" />
-            )}
-          </Button>
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center">
+            {/* Логотип */}
+            <h1 className="text-3xl font-bold">WriteProAI</h1>
+
+            {/* Правая часть шапки с фиксированной структурой */}
+            <div className="flex items-center">
+              {/* Навигационные вкладки с фиксированной шириной */}
+              <div className="flex items-center space-x-1 w-[280px] justify-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="text-white bg-white/20 hover:bg-white/30 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+                >
+                  <Link href="/">
+                    <Home className="h-4 w-4 mr-2" />
+                    Главная
+                  </Link>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+                >
+                  <Link href="/saved-texts">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Избранное
+                  </Link>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+                >
+                  <Link href="/check-history">
+                    <Clock className="h-4 w-4 mr-2" />
+                    История
+                  </Link>
+                </Button>
+              </div>
+
+              {/* Блок авторизации и темы */}
+              <div className="flex items-center ml-8">
+                {memoizedUser ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="focus:outline-none">
+                        {memoizedUser.photoURL ? (
+                          <img
+                            src={memoizedUser.photoURL}
+                            alt="User avatar"
+                            className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-gray-800 cursor-pointer hover:opacity-90 transition-opacity"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-blue-400 dark:bg-blue-500 flex items-center justify-center text-white font-semibold text-sm uppercase cursor-pointer hover:opacity-90 transition-opacity">
+                            {memoizedUser.email ? memoizedUser.email.substring(0, 2) : "??"}
+                          </div>
+                        )}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {memoizedUser.email && (
+                        <DropdownMenuLabel className="font-normal text-xs truncate">
+                          {memoizedUser.email}
+                        </DropdownMenuLabel>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleSignOutClick} className="text-red-500 dark:text-red-400 cursor-pointer">
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Выйти
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+                  >
+                    <Link href="/auth">
+                      <User className="h-4 w-4 mr-2" />
+                      Войти
+                    </Link>
+                  </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleTheme}
+                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg p-2 ml-2"
+                  aria-label="Переключить тему"
+                >
+                  {isDarkMode ? (
+                    <Sun className="h-5 w-5 text-yellow-400 transition-transform hover:rotate-45" />
+                  ) : (
+                    <Moon className="h-5 w-5 text-white transition-transform hover:-rotate-12" />
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
       {/* Основное содержимое */}
       <main className="flex-grow py-6">
         <div className="container mx-auto px-4 max-w-4xl">
-          <h2 className="text-2xl font-bold mb-4 text-black dark:text-white">Проверка письменных работ</h2>
+          <h2 className="text-2xl font-bold mb-2 text-black dark:text-white">Проверка письменных работ</h2>
 
-      <div className="grid gap-4">
-        <Textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Введите ваш текст для проверки... Например: 'Я хотел пойти в кино но у меня не было времени.'"
-          className="min-h-[300px] p-4 text-lg border-2 border-blue-400/50 dark:border-blue-600/50 rounded-xl shadow-md focus:border-blue-600 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-400/50 dark:focus:ring-blue-600/50 focus:shadow-lg transition-all duration-300 bg-white dark:bg-gray-900 resize-y"
-          style={{
-            boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
-          }}
-        />
-
-        <div className="flex flex-col items-center gap-2 my-6">
-          <Button
-            onClick={checkText}
-            className="w-64 py-6 text-lg font-semibold bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-xl"
-          >
-            Проверить текст
-          </Button>
-          {text !== checkedText && checkedText && (
-            <span className="text-yellow-600 dark:text-yellow-400 text-sm">
-              Текст изменен после последней проверки
-            </span>
-          )}
-        </div>
-
-        {readabilityScore > 0 && (
-          <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20 space-y-2">
-            <h2 className="font-semibold mb-2 text-black dark:text-white">Читаемость текста:</h2>
-            <div className="flex justify-between text-black dark:text-white">
-              <span>Уровень читаемости</span>
-              <span>{Math.round(readabilityScore)}%</span>
-            </div>
-            <div className="relative pt-1">
-              <div className="w-full h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-600 dark:bg-blue-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.round(readabilityScore)}%` }}
-                ></div>
-              </div>
-              <div className="flex justify-between mt-1 text-xs text-gray-600 dark:text-gray-400">
-                <span>0%</span>
-                <span>25%</span>
-                <span>50%</span>
-                <span>75%</span>
-                <span>100%</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {errors.length > 0 && (
-          <div className="space-y-4">
-            {spellingErrors.length > 0 && (
-              <div className="border rounded-lg p-4 bg-red-50 dark:bg-red-900/20 mb-4">
-                <h2 className="font-semibold mb-2 text-black dark:text-white">Орфографические ошибки:</h2>
-                <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
-                  {spellingErrors.map((error, index) => (
-                    <li key={index}>
-                      {error.message}
-                      {error.suggestions.length > 0 && (
-                        <div className="mt-1">
-                          <span className="text-sm text-black dark:text-white">
-                            Популярные варианты:
-                          </span>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            {(() => {
-                              // Получаем контекстные веса для каждого предложения
-                              const suggestionsWithWeights = error.suggestions
-                                .slice(0, 5)
-                                .map(suggestion => {
-                                  // Получаем базовый вес из словаря популярных слов
-                                  let weight = POPULAR_WORDS[suggestion.toLowerCase()] || 10;
-
-                                  // Анализируем контекст для этого предложения
-                                  const contextWords = checkedText.split(/\s+/);
-                                  const errorPosition = error.offset;
-
-                                  // Находим слова до и после ошибки
-                                  let wordsBefore = [];
-                                  let wordsAfter = [];
-                                  let currentPos = 0;
-
-                                  for (let i = 0; i < contextWords.length; i++) {
-                                    const word = contextWords[i];
-                                    const wordLength = word.length;
-
-                                    if (currentPos + wordLength > errorPosition && wordsBefore.length === 0) {
-                                      // Нашли слово с ошибкой
-                                      wordsBefore = contextWords.slice(Math.max(0, i - 2), i);
-                                      wordsAfter = contextWords.slice(i + 1, Math.min(contextWords.length, i + 3));
-                                      break;
-                                    }
-
-                                    currentPos += wordLength + 1; // +1 для пробела
-                                  }
-
-                                  // Проверяем контекстные словосочетания
-                                  for (const phrase of CONTEXT_PHRASES) {
-                                    if (phrase.words.length === 2) {
-                                      const [word1, word2] = phrase.words;
-
-                                      // Проверяем, является ли предложение первым словом в словосочетании
-                                      if (suggestion.toLowerCase() === word1) {
-                                        // Ищем второе слово после ошибки
-                                        for (const afterWord of wordsAfter) {
-                                          if (afterWord.toLowerCase().replace(/[.,!?;:()]/g, '') === word2) {
-                                            weight += phrase.weight;
-                                            break;
-                                          }
-                                        }
-                                      }
-
-                                      // Проверяем, является ли предложение вторым словом в словосочетании
-                                      if (suggestion.toLowerCase() === word2) {
-                                        // Ищем первое слово перед ошибкой
-                                        for (const beforeWord of wordsBefore) {
-                                          if (beforeWord.toLowerCase().replace(/[.,!?;:()]/g, '') === word1) {
-                                            weight += phrase.weight;
-                                            break;
-                                          }
-                                        }
-                                      }
-                                    }
-                                  }
-
-                                  return { suggestion, weight };
-                                })
-                                // Сортируем по весу (от большего к меньшему)
-                                .sort((a, b) => b.weight - a.weight);
-
-                              // Отображаем предложения
-                              return suggestionsWithWeights.map(({ suggestion, weight }, i) => (
-                                <span
-                                  key={i}
-                                  className={`inline-block px-2 py-1 rounded-md text-sm ${
-                                    i === 0
-                                      ? "bg-green-500 text-white font-medium"
-                                      : "bg-gray-200 dark:bg-gray-700 text-black dark:text-white"
-                                  }`}
-                                  title={`Популярность: ${weight > 50 ? 'очень высокая' : weight > 20 ? 'высокая' : 'обычная'}`}
-                                >
-                                  {suggestion}
-                                </span>
-                              ));
-                            })()
-                            }
-                            {error.suggestions.length > 5 && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400 self-center">
-                                и ещё {error.suggestions.length - 5}...
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {commaErrors.length > 0 && (
-              <div className="border rounded-lg p-4 bg-yellow-50 dark:bg-yellow-900/20">
-                <h2 className="font-semibold mb-2 text-black dark:text-white">Пунктуационные ошибки:</h2>
-                <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
-                  {commaErrors.map((error, index) => (
-                    <li key={index}>
-                      {error.message}
-                      {error.suggestions.length > 0 && (
-                        <span className="text-sm text-black dark:text-white ml-2">
-                          (Рекомендуется: {error.suggestions.slice(0, 5).join(', ')}
-                          {error.suggestions.length > 5 && ` и ещё ${error.suggestions.length - 5}...`})
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {otherErrors.length > 0 && (
-              <div className="border rounded-lg p-4 bg-orange-50 dark:bg-orange-900/20">
-                <h2 className="font-semibold mb-2 text-black dark:text-white">Другие ошибки:</h2>
-                <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
-                  {otherErrors.map((error, index) => (
-                    <li key={index}>
-                      {error.message}
-                      {error.suggestions.length > 0 && (
-                        <span className="text-sm text-black dark:text-white ml-2">
-                          (Возможные исправления: {error.suggestions.slice(0, 5).join(', ')}
-                          {error.suggestions.length > 5 && ` и ещё ${error.suggestions.length - 5}...`})
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20">
-              <div className="flex justify-between items-center mb-2">
-                <h2 className="font-semibold text-black dark:text-white">Ошибки в тексте:</h2>
-                {text !== checkedText && (
-                  <span className="text-xs text-gray-600 dark:text-gray-400">
-                    Показан результат последней проверки
-                  </span>
-                )}
-              </div>
-              <div
-                className="whitespace-pre-wrap text-black dark:text-white max-h-[300px] overflow-auto p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700"
+          <div className="grid gap-3">
+            <div className="relative">
+              <Textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Введите текст для проверки орфографии, пунктуации и читаемости... Например: 'Я хотел пойти в кино но у меня не было времени.'"
+                className="min-h-[300px] p-4 text-lg border-2 border-blue-400/50 dark:border-blue-600/50 rounded-xl shadow-md focus:border-blue-600 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-400/50 dark:focus:ring-blue-600/50 focus:shadow-lg transition-all duration-300 bg-white dark:bg-gray-900 resize-y"
                 style={{
                   boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
                 }}
-              >
-                {highlightedText}
-              </div>
-
-              {/* Цветовые обозначения для подсветки ошибок */}
-              {errors.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex flex-wrap gap-3">
-                    <div className="flex items-center">
-                      <span className="inline-block w-4 h-4 bg-yellow-200 dark:bg-yellow-800 mr-2 rounded"></span>
-                      <span className="text-sm text-black dark:text-white">Пунктуационные ошибки</span>
-                    </div>
-                    <div className="flex items-center">
-                      <span className="inline-block w-4 h-4 bg-red-200 dark:bg-red-800 mr-2 rounded"></span>
-                      <span className="text-sm text-black dark:text-white">Орфографические и другие ошибки</span>
-                    </div>
-                  </div>
-                </div>
+              />
+              {text && (
+                <button
+                  type="button"
+                  onClick={quickClearText}
+                  className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none bg-white dark:bg-gray-800 rounded-full p-1"
+                  title="Очистить текст"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               )}
             </div>
 
-            {correctedText && (
-              <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
-                <div className="flex justify-between items-center mb-2">
-                  <h2 className="font-semibold text-black dark:text-white">Исправленный текст:</h2>
-                  <Button
-                    onClick={() => copyToClipboard(correctedText)}
-                    className={`p-2 rounded-full transition-all duration-300 ${
-                      isCopied
-                        ? "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
-                        : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
-                    }`}
-                    title={isCopied ? "Скопировано!" : "Копировать текст"}
-                    aria-label={isCopied ? "Скопировано!" : "Копировать текст"}
-                  >
-                    {isCopied ? (
-                      <Check className="h-4 w-4 text-white" />
-                    ) : (
-                      <Copy className="h-4 w-4 text-white" />
-                    )}
-                  </Button>
+            <div className="flex flex-col items-center gap-2 my-4">
+              <Button
+                onClick={checkText}
+                className="w-64 py-5 text-lg font-semibold bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-xl"
+              >
+                Проверить текст
+              </Button>
+              {text !== checkedText && checkedText && (
+                <span className="text-yellow-600 dark:text-yellow-400 text-sm">
+                  Текст изменен после последней проверки
+                </span>
+              )}
+            </div>
+
+            {readabilityScore > 0 && (
+              <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20 space-y-2">
+                <h2 className="font-semibold mb-2 text-black dark:text-white">Читаемость текста:</h2>
+                <div className="flex justify-between text-black dark:text-white">
+                  <span>Уровень читаемости</span>
+                  <span>{Math.round(readabilityScore)}%</span>
                 </div>
-                <div
-                  className="whitespace-pre-wrap text-black dark:text-white p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 max-h-[300px] overflow-auto"
-                  style={{
-                    boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
-                  }}
-                >
-                  {correctedText}
+                <div className="relative pt-1">
+                  <div className="w-full h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-600 dark:bg-blue-500 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.round(readabilityScore)}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between mt-1 text-xs text-gray-600 dark:text-gray-400">
+                    <span>0%</span>
+                    <span>25%</span>
+                    <span>50%</span>
+                    <span>75%</span>
+                    <span>100%</span>
+                  </div>
                 </div>
               </div>
             )}
+
+            {errors.length > 0 && (
+              <div className="space-y-4">
+                {spellingErrors.length > 0 && (
+                  <div className="border rounded-lg p-4 bg-red-50 dark:bg-red-900/20 mb-4">
+                    <h2 className="font-semibold mb-2 text-black dark:text-white">Орфографические ошибки:</h2>
+                    <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
+                      {spellingErrors.map((error, index) => (
+                        <li key={index}>
+                          {error.message}
+                          {error.suggestions.length > 0 && (
+                            <div className="mt-1">
+                              <span className="text-sm text-black dark:text-white">
+                                Популярные варианты:
+                              </span>
+                              <div className="flex flex-wrap gap-2 mt-1">
+                                {(() => {
+                                  // Получаем контекстные веса для каждого предложения
+                                  const suggestionsWithWeights = error.suggestions
+                                    .slice(0, 5)
+                                    .map(suggestion => {
+                                      // Получаем базовый вес из словаря популярных слов
+                                      let weight = POPULAR_WORDS[suggestion.toLowerCase()] || 10;
+
+                                      // Анализируем контекст для этого предложения
+                                      const contextWords = checkedText.split(/\s+/);
+                                      const errorPosition = error.offset;
+
+                                      // Находим слова до и после ошибки
+                                      let wordsBefore = [];
+                                      let wordsAfter = [];
+                                      let currentPos = 0;
+
+                                      for (let i = 0; i < contextWords.length; i++) {
+                                        const word = contextWords[i];
+                                        const wordLength = word.length;
+
+                                        if (currentPos + wordLength > errorPosition && wordsBefore.length === 0) {
+                                          // Нашли слово с ошибкой
+                                          wordsBefore = contextWords.slice(Math.max(0, i - 2), i);
+                                          wordsAfter = contextWords.slice(i + 1, Math.min(contextWords.length, i + 3));
+                                          break;
+                                        }
+
+                                        currentPos += wordLength + 1; // +1 для пробела
+                                      }
+
+                                      // Проверяем контекстные словосочетания
+                                      for (const phrase of CONTEXT_PHRASES) {
+                                        if (phrase.words.length === 2) {
+                                          const [word1, word2] = phrase.words;
+
+                                          // Проверяем, является ли предложение первым словом в словосочетании
+                                          if (suggestion.toLowerCase() === word1) {
+                                            // Ищем второе слово после ошибки
+                                            for (const afterWord of wordsAfter) {
+                                              if (afterWord.toLowerCase().replace(/[.,!?;:()]/g, '') === word2) {
+                                                weight += phrase.weight;
+                                                break;
+                                              }
+                                            }
+                                          }
+
+                                          // Проверяем, является ли предложение вторым словом в словосочетании
+                                          if (suggestion.toLowerCase() === word2) {
+                                            // Ищем первое слово перед ошибкой
+                                            for (const beforeWord of wordsBefore) {
+                                              if (beforeWord.toLowerCase().replace(/[.,!?;:()]/g, '') === word1) {
+                                                weight += phrase.weight;
+                                                break;
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+
+                                      return { suggestion, weight };
+                                    })
+                                    // Сортируем по весу (от большего к меньшему)
+                                    .sort((a, b) => b.weight - a.weight);
+
+                                  // Отображаем предложения
+                                  return suggestionsWithWeights.map(({ suggestion, weight }, i) => (
+                                    <span
+                                      key={i}
+                                      className={`inline-block px-2 py-1 rounded-md text-sm ${
+                                        i === 0
+                                          ? "bg-green-500 text-white font-medium"
+                                          : "bg-gray-200 dark:bg-gray-700 text-black dark:text-white"
+                                      }`}
+                                      title={`Популярность: ${weight > 50 ? 'очень высокая' : weight > 20 ? 'высокая' : 'обычная'}`}
+                                    >
+                                      {suggestion}
+                                    </span>
+                                  ));
+                                })()
+                                }
+                                {error.suggestions.length > 5 && (
+                                  <span className="text-xs text-gray-500 dark:text-gray-400 self-center">
+                                    и ещё {error.suggestions.length - 5}...
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {commaErrors.length > 0 && (
+                  <div className="border rounded-lg p-4 bg-yellow-50 dark:bg-yellow-900/20">
+                    <h2 className="font-semibold mb-2 text-black dark:text-white">Пунктуационные ошибки:</h2>
+                    <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
+                      {commaErrors.map((error, index) => (
+                        <li key={index}>
+                          {error.message}
+                          {error.suggestions.length > 0 && (
+                            <span className="text-sm text-black dark:text-white ml-2">
+                              (Рекомендуется: {error.suggestions.slice(0, 5).join(', ')}
+                              {error.suggestions.length > 5 && ` и ещё ${error.suggestions.length - 5}...`})
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {otherErrors.length > 0 && (
+                  <div className="border rounded-lg p-4 bg-orange-50 dark:bg-orange-900/20">
+                    <h2 className="font-semibold mb-2 text-black dark:text-white">Другие ошибки:</h2>
+                    <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
+                      {otherErrors.map((error, index) => (
+                        <li key={index}>
+                          {error.message}
+                          {error.suggestions.length > 0 && (
+                            <span className="text-sm text-black dark:text-white ml-2">
+                              (Возможные исправления: {error.suggestions.slice(0, 5).join(', ')}
+                              {error.suggestions.length > 5 && ` и ещё ${error.suggestions.length - 5}...`})
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20">
+                  <div className="flex justify-between items-center mb-2">
+                    <h2 className="font-semibold text-black dark:text-white">Ошибки в тексте:</h2>
+                    {text !== checkedText && (
+                      <span className="text-xs text-gray-600 dark:text-gray-400">
+                        Показан результат последней проверки
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className="whitespace-pre-wrap text-black dark:text-white max-h-[300px] overflow-auto p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700"
+                    style={{
+                      boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
+                    }}
+                  >
+                    {highlightedText}
+                  </div>
+
+                  {/* Цветовые обозначения для подсветки ошибок */}
+                  {errors.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex flex-wrap gap-3">
+                        <div className="flex items-center">
+                          <span className="inline-block w-4 h-4 bg-yellow-200 dark:bg-yellow-800 mr-2 rounded"></span>
+                          <span className="text-sm text-black dark:text-white">Пунктуационные ошибки</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="inline-block w-4 h-4 bg-red-200 dark:bg-red-800 mr-2 rounded"></span>
+                          <span className="text-sm text-black dark:text-white">Орфографические и другие ошибки</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {correctedText && (
+                  <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
+                    <div className="flex justify-between items-center mb-2">
+                      <h2 className="font-semibold text-black dark:text-white">Исправленный текст:</h2>
+                      <div className="flex items-center space-x-2">
+                        <SaveText text={text} correctedText={correctedText} errors={errors} />
+                        <Button
+                          onClick={() => copyToClipboard(correctedText)}
+                          className={`p-2 rounded-full transition-all duration-300 ${
+                            isCopied
+                              ? "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+                              : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
+                          }`}
+                          title={isCopied ? "Скопировано!" : "Копировать текст"}
+                          aria-label={isCopied ? "Скопировано!" : "Копировать текст"}
+                        >
+                          {isCopied ? (
+                            <Check className="h-4 w-4 text-white" />
+                          ) : (
+                            <Copy className="h-4 w-4 text-white" />
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                    <div
+                      className="whitespace-pre-wrap text-black dark:text-white p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 max-h-[300px] overflow-auto"
+                      style={{
+                        boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
+                      }}
+                    >
+                      {correctedText}
+                    </div>
+                  </div>
+                )}
           </div>
         )}
-      </div>
+          </div>
         </div>
       </main>
     </div>
