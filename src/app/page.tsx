@@ -74,6 +74,7 @@ export default function HomePage() {
   const [errors, setErrors] = useState([]);
   const [commaErrors, setCommaErrors] = useState([]);
   const [spellingErrors, setSpellingErrors] = useState([]);
+  const [semanticErrors, setSemanticErrors] = useState([]);
   const [otherErrors, setOtherErrors] = useState([]);
   const [readabilityScore, setReadabilityScore] = useState(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -143,6 +144,7 @@ export default function HomePage() {
       setErrors([]);
       setCommaErrors([]);
       setSpellingErrors([]);
+      setSemanticErrors([]);
       setOtherErrors([]);
       setReadabilityScore(0);
     }
@@ -156,6 +158,7 @@ export default function HomePage() {
     setErrors([]);
     setCommaErrors([]);
     setSpellingErrors([]);
+    setSemanticErrors([]);
     setOtherErrors([]);
     setReadabilityScore(0);
   };
@@ -278,7 +281,12 @@ export default function HomePage() {
         // Для ошибок с запятыми (length = 0) добавляем запятую
         if (error.length === 0 &&
             (error.ruleId === 'COMMA_BEFORE_CONJUNCTION' ||
-             (error.message && error.message.toLowerCase().includes('запятая')))) {
+             error.ruleId === 'COMMA_BEFORE_PARTICIPLE' ||
+             (error.message && (
+               error.message.toLowerCase().includes('запятая') ||
+               error.message.toLowerCase().includes('деепричастн')
+             ))
+            )) {
           // Вставляем запятую в нужную позицию
           corrected = corrected.slice(0, error.offset) + ',' + corrected.slice(error.offset);
         } else {
@@ -420,30 +428,110 @@ export default function HomePage() {
       // чтобы они были видны в подсветке
       if (error.length === 0 &&
           (error.ruleId === 'COMMA_BEFORE_CONJUNCTION' ||
-           (error.message && error.message.toLowerCase().includes('запятая')))) {
-        return { ...error, length: 1 };
+           error.ruleId === 'COMMA_BEFORE_PARTICIPLE' ||
+           (error.message && (
+             error.message.toLowerCase().includes('запятая') ||
+             error.message.toLowerCase().includes('деепричастн') ||
+             error.message.toLowerCase().includes('причастн') ||
+             error.message.toLowerCase().includes('однородн')
+           ))
+          )) {
+        // Для пунктуационных ошибок используем длину, которая уже установлена в API
+        // Не используем контекст, так как это может привести к дублированию текста
+        return { ...error, length: error.length > 0 ? error.length : 1 };
       }
       return error;
     });
 
-    errorsForHighlight.sort((a, b) => a.offset - b.offset).forEach(error => {
+    // Удаляем дубликаты ошибок с одинаковым смещением (offset)
+    // Это поможет избежать раздвоения деепричастных оборотов
+    const uniqueErrors = [];
+    const offsetsSet = new Set();
+
+    errorsForHighlight.forEach(error => {
+      // Если ошибка с таким смещением уже есть, пропускаем
+      if (!offsetsSet.has(error.offset)) {
+        offsetsSet.add(error.offset);
+        uniqueErrors.push(error);
+      } else {
+        console.log('Пропускаем дублирующую ошибку:', {
+          message: error.message,
+          offset: error.offset,
+          length: error.length
+        });
+      }
+    });
+
+    uniqueErrors.sort((a, b) => a.offset - b.offset).forEach(error => {
       result.push(checkedText.slice(lastPos, error.offset));
 
       // Определяем класс подсветки в зависимости от типа ошибки
       let highlightClass = "bg-red-200 dark:bg-red-800 text-black dark:text-white font-medium";
 
-      // Для ошибок с запятыми используем желтый цвет
-      if (error.ruleId === 'COMMA_BEFORE_CONJUNCTION' ||
-          (error.message && error.message.toLowerCase().includes('запятая'))) {
-        highlightClass = "bg-yellow-200 dark:bg-yellow-800 text-black dark:text-white font-medium";
+      // Проверяем, к какой категории относится ошибка
+      const errorMessage = error.message.toLowerCase();
+      const errorOffset = error.offset;
+
+      // Ищем ошибку в соответствующих массивах по смещению (offset)
+      // Для пунктуационных ошибок используем желтый цвет
+      const isPunctuation = commaErrors.some(e => e.offset === errorOffset && e.message === error.message);
+      if (isPunctuation) {
+        // Проверяем, является ли это ошибкой с запятой
+        const isCommaError = error.message.toLowerCase().includes('запятая');
+
+        if (isCommaError) {
+          // Для ошибок с запятыми используем специальный стиль с увеличенным шрифтом
+          highlightClass = "bg-yellow-200 dark:bg-yellow-800 text-black dark:text-white font-medium text-lg";
+        } else {
+          highlightClass = "bg-yellow-200 dark:bg-yellow-800 text-black dark:text-white font-medium";
+        }
+      }
+      // Для орфографических ошибок используем красный цвет (уже установлен по умолчанию)
+      else if (spellingErrors.some(e => e.offset === errorOffset && e.message === error.message)) {
+        highlightClass = "bg-red-200 dark:bg-red-800 text-black dark:text-white font-medium";
+      }
+      // Для смысловых ошибок используем фиолетовый цвет
+      else if (semanticErrors.some(e => e.offset === errorOffset && e.message === error.message)) {
+        highlightClass = "bg-purple-200 dark:bg-purple-800 text-black dark:text-white font-medium";
+      }
+      // Для других ошибок используем оранжевый цвет
+      else if (otherErrors.some(e => e.offset === errorOffset && e.message === error.message)) {
+        highlightClass = "bg-orange-200 dark:bg-orange-800 text-black dark:text-white font-medium";
       }
 
+      // Добавляем отладочную информацию
+      if (errorMessage.includes('запятая') && !isPunctuation) {
+        console.log('Ошибка с запятой не распознана как пунктуационная:', { message: error.message, offset: error.offset });
+      }
+
+      // Добавляем отладочный вывод для проверки текста, который будет подсвечен
+      // Убедимся, что мы не выходим за границы текста
+      const safeOffset = Math.min(error.offset, checkedText.length);
+      const safeLength = Math.min(error.length, checkedText.length - safeOffset);
+
+      // Проверяем, является ли это ошибкой с запятой
+      const isCommaError = isPunctuation && error.message.toLowerCase().includes('запятая');
+
+      // Для ошибок с запятыми используем специальную логику подсветки
+      // Подсвечиваем только две буквы между которыми должна быть запятая
+      const textToHighlight = checkedText.slice(safeOffset, safeOffset + safeLength) || " ";
+
+      console.log('Подсветка текста:', {
+        text: textToHighlight,
+        offset: safeOffset,
+        length: safeLength,
+        message: error.message,
+        isPunctuation,
+        isCommaError
+      });
+
+      // Добавляем подсветку
       result.push(
         <span key={error.offset} className={highlightClass}>
-          {checkedText.slice(error.offset, error.offset + error.length) || " "}
+          {textToHighlight}
         </span>
       );
-      lastPos = error.offset + error.length;
+      lastPos = safeOffset + safeLength;
     });
 
     result.push(checkedText.slice(lastPos));
@@ -476,10 +564,6 @@ export default function HomePage() {
 
       // Преобразуем все ошибки в единый формат и фильтруем дубликаты
       const allErrors = data.matches
-        // Фильтруем ошибки, чтобы исключить те, которые содержат "отсутствует запятая перед союзом"
-        .filter((match: any) =>
-          !match.message.toLowerCase().includes('отсутствует запятая перед')
-        )
         .map((match: any) => {
           // Создаем объект ошибки
           let suggestions = match.replacements?.map((r: any) => r.value) || [];
@@ -577,34 +661,117 @@ export default function HomePage() {
           return error;
         });
 
-      // Разделяем ошибки на категории: запятые, орфографические и другие ошибки
-      // Включаем только ошибки с запятыми с формулировкой "Пропущена запятая: ..."
-      const commaErrorsList = allErrors.filter(error =>
-        error.message && (
-          error.message.toLowerCase().includes('пропущена запятая:') ||
-          error.message.toLowerCase().includes('пропущена запятая')
-        )
-      );
+      // Разделяем ошибки на категории: пунктуационные, орфографические, смысловые и другие
 
-      // Определяем орфографические ошибки (ошибки в словах)
-      const spellingErrorsList = allErrors.filter(error =>
-        error.ruleId === 'MORFOLOGIK_RULE_RU_RU' || // Основное правило проверки орфографии
-        error.ruleId === 'SPELLING_RULE' ||
-        error.ruleId === 'TYPOS' ||
-        error.message.toLowerCase().includes('опечатка') ||
-        error.message.toLowerCase().includes('правильно:') ||
-        error.message.toLowerCase().includes('проверьте написание')
-      );
+      // 1. Пунктуационные ошибки (запятые, точки, тире и т.д.)
+      const commaErrorsList = allErrors.filter(error => {
+        // Проверяем сообщение об ошибке и ID правила
+        const message = error.message.toLowerCase();
 
-      // Остальные ошибки (исключаем ошибки с запятыми и орфографические ошибки)
+        // Наши собственные правила для запятых
+        if (error.ruleId === 'COMMA_BEFORE_CONJUNCTION' ||
+            error.ruleId === 'COMMA_BEFORE_PARTICIPLE') {
+          return true;
+        }
+
+        // Правила LanguageTool для пунктуации
+        if (error.ruleId === 'PUNCTUATION' ||
+            error.ruleId === 'COMMA_PARENTHESIS_WHITESPACE' ||
+            error.ruleId === 'WHITESPACE_RULE' ||
+            error.ruleId?.includes('PUNCT')) {
+          return true;
+        }
+
+        // Проверка по ключевым словам в сообщении
+        const punctuationKeywords = [
+          'запятая', 'запятую', 'запятые', 'запятыми',
+          'точка', 'точку', 'точки',
+          'тире', 'двоеточие', 'кавычки',
+          'пунктуация', 'пунктуационн',
+          'деепричастн', 'причастн',
+          'скобк', 'скобок'
+        ];
+
+        return punctuationKeywords.some(keyword => message.includes(keyword));
+      });
+
+      // 2. Орфографические ошибки (ошибки в написании слов)
+      const spellingErrorsList = allErrors.filter(error => {
+        const message = error.message.toLowerCase();
+
+        // Проверяем ID правила
+        if (error.ruleId === 'MORFOLOGIK_RULE_RU_RU' ||
+            error.ruleId === 'SPELLING_RULE' ||
+            error.ruleId === 'TYPOS' ||
+            error.ruleId?.includes('SPELL')) {
+          return true;
+        }
+
+        // Проверка по ключевым словам в сообщении
+        const spellingKeywords = [
+          'опечатка', 'правильно:', 'проверьте написание',
+          'орфографическ', 'пишется', 'написание',
+          'возможно найдена ошибка', 'возможно, найдена ошибка'
+        ];
+
+        return spellingKeywords.some(keyword => message.includes(keyword));
+      });
+
+      // 3. Смысловые ошибки (стиль, согласование, лексика)
+      const semanticErrorsList = allErrors.filter(error => {
+        const message = error.message.toLowerCase();
+
+        // Проверяем ID правила
+        if (error.ruleId === 'AGREEMENT_RULE' ||
+            error.ruleId === 'STYLE_RULE' ||
+            error.ruleId?.includes('STYLE') ||
+            error.ruleId?.includes('SEMANTICS') ||
+            error.ruleId?.includes('LOGIC')) {
+          return true;
+        }
+
+        // Проверка по ключевым словам в сообщении
+        const semanticKeywords = [
+          'согласу', 'согласов', 'не согласуется',
+          'стил', 'стиль', 'стилистическ',
+          'повтор', 'тавтолог',
+          'плеоназм', 'избыточн',
+          'лексическ', 'смысл',
+          'падеж', 'склонен', 'спряжен',
+          'род', 'число', 'времен'
+        ];
+
+        return semanticKeywords.some(keyword => message.includes(keyword)) &&
+               !commaErrorsList.includes(error) &&
+               !spellingErrorsList.includes(error);
+      });
+
+      // 4. Другие ошибки (все остальные)
       const otherErrorsList = allErrors.filter(error =>
         !commaErrorsList.includes(error) &&
-        !spellingErrorsList.includes(error)
+        !spellingErrorsList.includes(error) &&
+        !semanticErrorsList.includes(error)
       );
+
+      // Выводим количество ошибок каждого типа для отладки
+      console.log('Всего ошибок:', allErrors.length);
+      console.log('Пунктуационных ошибок:', commaErrorsList.length);
+      console.log('Орфографических ошибок:', spellingErrorsList.length);
+      console.log('Смысловых ошибок:', semanticErrorsList.length);
+      console.log('Других ошибок:', otherErrorsList.length);
+
+      // Выводим первые несколько ошибок каждого типа для отладки
+      if (commaErrorsList.length > 0) {
+        console.log('Примеры пунктуационных ошибок:', commaErrorsList.slice(0, 3).map(e => ({ message: e.message, ruleId: e.ruleId })));
+      }
+      if (spellingErrorsList.length > 0) {
+        console.log('Примеры орфографических ошибок:', spellingErrorsList.slice(0, 3).map(e => ({ message: e.message, ruleId: e.ruleId })));
+      }
 
       setErrors(allErrors);
       setCommaErrors(commaErrorsList);
       setSpellingErrors(spellingErrorsList);
+      setSemanticErrors(semanticErrorsList);
       setOtherErrors(otherErrorsList);
       // Округляем значение читаемости до целого числа
       setReadabilityScore(Math.round(data.readabilityScore * 10));
@@ -644,6 +811,7 @@ export default function HomePage() {
       }]);
       setCommaErrors([]);
       setSpellingErrors([]);
+      setSemanticErrors([]);
       setOtherErrors([]);
     }
   };
@@ -956,8 +1124,58 @@ export default function HomePage() {
                 {commaErrors.length > 0 && (
                   <div className="border rounded-lg p-4 bg-yellow-50 dark:bg-yellow-900/20">
                     <h2 className="font-semibold mb-2 text-black dark:text-white">Пунктуационные ошибки:</h2>
-                    <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
+                    <ul className="list-disc pl-5 space-y-3 text-black dark:text-white">
                       {commaErrors.map((error, index) => (
+                        <li key={index}>
+                          <div className="mb-1">{error.message}</div>
+
+                          {/* Контекст ошибки */}
+                          {error.context && error.context.text && (
+                            <div className="bg-white dark:bg-gray-800 p-2 rounded border border-yellow-200 dark:border-yellow-800 text-sm">
+                              <span className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Контекст:</span>
+                              <div className="font-mono">
+                                {(() => {
+                                  // Получаем контекст и позицию ошибки
+                                  const contextText = error.context.text;
+                                  const errorPosition = error.offset - error.context.offset;
+
+                                  // Находим позицию для вставки запятой
+                                  // Это будет после последней буквы первого слова
+                                  const commaPosition = errorPosition + 1;
+
+                                  // Разделяем текст на части: до запятой, запятая, после запятой
+                                  const beforeComma = contextText.substring(0, commaPosition);
+                                  const afterComma = contextText.substring(commaPosition);
+
+                                  return (
+                                    <>
+                                      <span>{beforeComma}</span>
+                                      <span className="text-red-500 dark:text-red-400 font-bold">,</span>
+                                      <span>{afterComma}</span>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+                          )}
+
+                          {error.suggestions.length > 0 && (
+                            <span className="text-sm text-black dark:text-white mt-1 block">
+                              Рекомендуется: {error.suggestions.slice(0, 5).join(', ')}
+                              {error.suggestions.length > 5 && ` и ещё ${error.suggestions.length - 5}...`}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {semanticErrors.length > 0 && (
+                  <div className="border rounded-lg p-4 bg-purple-50 dark:bg-purple-900/20">
+                    <h2 className="font-semibold mb-2 text-black dark:text-white">Смысловые и стилистические ошибки:</h2>
+                    <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
+                      {semanticErrors.map((error, index) => (
                         <li key={index}>
                           {error.message}
                           {error.suggestions.length > 0 && (
@@ -1019,7 +1237,15 @@ export default function HomePage() {
                         </div>
                         <div className="flex items-center">
                           <span className="inline-block w-4 h-4 bg-red-200 dark:bg-red-800 mr-2 rounded"></span>
-                          <span className="text-sm text-black dark:text-white">Орфографические и другие ошибки</span>
+                          <span className="text-sm text-black dark:text-white">Орфографические ошибки</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="inline-block w-4 h-4 bg-purple-200 dark:bg-purple-800 mr-2 rounded"></span>
+                          <span className="text-sm text-black dark:text-white">Смысловые ошибки</span>
+                        </div>
+                        <div className="flex items-center">
+                          <span className="inline-block w-4 h-4 bg-orange-200 dark:bg-orange-800 mr-2 rounded"></span>
+                          <span className="text-sm text-black dark:text-white">Другие ошибки</span>
                         </div>
                       </div>
                     </div>
