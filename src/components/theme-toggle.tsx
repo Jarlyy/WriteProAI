@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "../components/ui/button";
 
 export function ThemeToggle() {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -12,7 +12,7 @@ export function ThemeToggle() {
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     // Проверяем сохраненную тему
     const savedTheme = localStorage.getItem("theme");
-    
+
     // Устанавливаем начальное состояние
     if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
       setIsDarkMode(true);

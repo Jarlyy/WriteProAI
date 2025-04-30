@@ -1011,15 +1011,21 @@ export default function HomePage() {
               </div>
             )}
 
-            {errors.length > 0 && (
+            {checkedText && (
               <div className="space-y-4">
-                {spellingErrors.length > 0 && (
-                  <div className="border rounded-lg p-4 bg-red-50 dark:bg-red-900/20 mb-4">
-                    <h2 className="font-semibold mb-2 text-black dark:text-white">Орфографические ошибки:</h2>
-                    <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
-                      {spellingErrors.map((error, index) => (
-                        <li key={index}>
-                          {error.message}
+                {errors.length === 0 ? (
+                  <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20 mb-4">
+                    <h2 className="font-semibold mb-2 text-black dark:text-white text-center text-xl">Ошибок не найдено</h2>
+                  </div>
+                ) : (
+                  <>
+                    {spellingErrors.length > 0 && (
+                      <div className="border rounded-lg p-4 bg-red-50 dark:bg-red-900/20 mb-4">
+                        <h2 className="font-semibold mb-2 text-black dark:text-white">Орфографические ошибки:</h2>
+                        <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
+                          {spellingErrors.map((error, index) => (
+                            <li key={index}>
+                              {error.message}
                           {error.suggestions.length > 0 && (
                             <div className="mt-1">
                               <span className="text-sm text-black dark:text-white">
@@ -1286,8 +1292,10 @@ export default function HomePage() {
                     </div>
                   </div>
                 )}
-          </div>
-        )}
+                </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </main>
