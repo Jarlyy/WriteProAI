@@ -1,97 +1,248 @@
 import { NextResponse } from 'next/server';
 
+// Интерфейсы для Yandex Speller API
+interface YandexSpellerError {
+  code: number;      // Код ошибки (1 - орфография, 2 - повтор, 3 - капитализация)
+  pos: number;       // Позиция ошибки в тексте
+  row: number;       // Номер строки
+  col: number;       // Номер столбца
+  len: number;       // Длина слова с ошибкой
+  word: string;      // Слово с ошибкой
+  s: string[];       // Варианты исправления
+}
+
+// Интерфейс для ошибок в формате LanguageTool (для совместимости)
+interface LanguageToolMatch {
+  message: string;
+  offset: number;
+  length: number;
+  replacements?: { value: string }[];
+  context?: {
+    text: string;
+    offset: number;
+  };
+  rule?: {
+    id: string;
+    description?: string;
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const { text } = await request.json();
 
-    // Реальный вызов LanguageTool API
-    const response = await fetch('https://api.languagetool.org/v2/check', {
+    // Вызов Yandex Speller API
+    const response = await fetch('https://speller.yandex.net/services/spellservice.json/checkText', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
         text,
-        language: 'ru',
-        enabledOnly: 'false'
+        lang: 'ru',
+        options: '4',  // Игнорировать URL и email
+        format: 'plain'
       })
     });
 
     if (!response.ok) {
-      throw new Error('Ошибка при вызове LanguageTool API');
+      throw new Error('Ошибка при вызове Yandex Speller API');
     }
 
-    const data = await response.json();
+    // Получаем результаты от Yandex Speller
+    const spellerErrors: YandexSpellerError[] = await response.json();
 
     // Добавляем базовую оценку читаемости
     const readabilityScore = calculateReadabilityScore(text);
 
-    // Модифицируем сообщения об ошибках
-    const modifiedMatches = data.matches.map(match => {
-      // Заменяем "Возможно найдена орфографическая ошибка" на "Возможно найдена ошибка"
-      if (match.message && match.message.includes('Возможно найдена орфографическая ошибка')) {
-        return {
-          ...match,
-          message: match.message.replace('Возможно найдена орфографическая ошибка', 'Возможно найдена ошибка')
-        };
+    // Преобразуем ошибки Yandex Speller в формат, совместимый с LanguageTool
+    const matches: LanguageToolMatch[] = spellerErrors.map(error => {
+      // Формируем сообщение об ошибке в зависимости от кода ошибки
+      let message = '';
+      let ruleId = '';
+
+      switch (error.code) {
+        case 1: // Орфографическая ошибка
+          message = `Возможно найдена ошибка: "${error.word}"`;
+          ruleId = 'SPELLING_RULE';
+          break;
+        case 2: // Повтор слова
+          message = `Повтор слова: "${error.word}"`;
+          ruleId = 'REPEATED_WORDS';
+          break;
+        case 3: // Неверное употребление прописных и строчных букв
+          message = `Неверное употребление прописных и строчных букв: "${error.word}"`;
+          ruleId = 'CAPITALIZATION';
+          break;
+        default:
+          message = `Ошибка в слове: "${error.word}"`;
+          ruleId = 'UNKNOWN_ERROR';
       }
 
-      // Модифицируем ошибки с запятыми от LanguageTool, чтобы они тоже выделялись только двумя буквами
-      if (match.message &&
-          (match.message.toLowerCase().includes('запятая') ||
-           match.message.toLowerCase().includes('запятую') ||
-           match.message.toLowerCase().includes('запятые'))) {
+      // Создаем контекст для ошибки
+      const contextStart = Math.max(0, error.pos - 20);
+      const contextEnd = Math.min(text.length, error.pos + error.len + 20);
+      const contextText = text.substring(contextStart, contextEnd);
 
-        // Получаем текст до и после места, где должна быть запятая
-        const textBefore = text.substring(0, match.offset);
-        const textAfter = text.substring(match.offset);
+      // Преобразуем варианты исправления в формат LanguageTool
+      const replacements = error.s.map(suggestion => ({ value: suggestion }));
 
-        // Находим последнее слово перед местом, где должна быть запятая
-        const lastWordMatch = textBefore.match(/(\S+)\s*$/);
-        // Находим первое слово после места, где должна быть запятая
-        const firstWordMatch = textAfter.match(/^\s*(\S+)/);
-
-        if (lastWordMatch && firstWordMatch) {
-          // Вычисляем новое смещение и длину для подсветки только двух букв
-          const lastLetterOffset = match.offset - 1;
-          const spaceLength = textAfter.match(/^\s*/)[0].length;
-
-          // Получаем контекст для ошибки - берем несколько слов до и после места, где должна быть запятая
-          const contextStart = Math.max(0, lastLetterOffset - 20);
-          const contextEnd = Math.min(text.length, lastLetterOffset + 20);
-          const contextText = text.substring(contextStart, contextEnd);
-
-          // Возвращаем модифицированную ошибку с контекстом
-          return {
-            ...match,
-            offset: lastLetterOffset,
-            length: 1 + spaceLength + 1,
-            context: {
-              text: contextText,
-              offset: contextStart
-            },
-            rule: {
-              ...match.rule,
-              id: match.rule?.id || 'PUNCTUATION'
-            }
-          };
+      return {
+        message,
+        offset: error.pos,
+        length: error.len,
+        replacements,
+        context: {
+          text: contextText,
+          offset: contextStart
+        },
+        rule: {
+          id: ruleId,
+          description: 'Проверка орфографии и пунктуации'
         }
-      }
-
-      return match;
+      };
     });
 
+    // Проверяем запятые в тексте (Yandex Speller не проверяет пунктуацию)
+    // Для этого можно использовать регулярные выражения для поиска распространенных ошибок с запятыми
+    const commaMatches = checkCommasWithRegex(text);
+
+    // Объединяем все найденные ошибки
+    const allMatches = [...matches, ...commaMatches];
+
     return NextResponse.json({
-      ...data,
-      matches: modifiedMatches,
+      matches: allMatches,
       readabilityScore
     });
   } catch (error) {
+    console.error('Ошибка при проверке текста:', error);
     return NextResponse.json(
-      { error: 'Ошибка при проверке текста' },
+      {
+        error: 'Ошибка при проверке текста',
+        matches: [],
+        readabilityScore: 0
+      },
       { status: 500 }
     );
   }
+}
+
+// Функция для проверки запятых с помощью регулярных выражений
+function checkCommasWithRegex(text: string): LanguageToolMatch[] {
+  const commaErrors: LanguageToolMatch[] = [];
+
+  // Массив правил для проверки запятых
+  const commaRules = [
+    // Запятая перед "но"
+    {
+      regex: /(\S+)(\s+)(но)(\s+)(\S+)/gi,
+      errorMessage: 'Пропущена запятая перед союзом "но"',
+      ruleId: 'COMMA_BEFORE_CONJUNCTION'
+    },
+    // Запятая перед "что"
+    {
+      regex: /(\S+)(\s+)(что)(\s+)(\S+)/gi,
+      errorMessage: 'Пропущена запятая перед союзом "что"',
+      ruleId: 'COMMA_BEFORE_CONJUNCTION'
+    },
+    // Запятая перед "который"
+    {
+      regex: /(\S+)(\s+)(который|которая|которое|которые)(\s+)(\S+)/gi,
+      errorMessage: 'Пропущена запятая перед союзным словом',
+      ruleId: 'COMMA_BEFORE_CONJUNCTION'
+    },
+    // Запятая перед "если"
+    {
+      regex: /(\S+)(\s+)(если)(\s+)(\S+)/gi,
+      errorMessage: 'Пропущена запятая перед союзом "если"',
+      ruleId: 'COMMA_BEFORE_CONJUNCTION'
+    },
+    // Запятая перед "потому что"
+    {
+      regex: /(\S+)(\s+)(потому что)(\s+)(\S+)/gi,
+      errorMessage: 'Пропущена запятая перед союзом "потому что"',
+      ruleId: 'COMMA_BEFORE_CONJUNCTION'
+    },
+    // Запятая перед "чтобы"
+    {
+      regex: /(\S+)(\s+)(чтобы)(\s+)(\S+)/gi,
+      errorMessage: 'Пропущена запятая перед союзом "чтобы"',
+      ruleId: 'COMMA_BEFORE_CONJUNCTION'
+    },
+    // Запятая перед "когда"
+    {
+      regex: /(\S+)(\s+)(когда)(\s+)(\S+)/gi,
+      errorMessage: 'Пропущена запятая перед союзом "когда"',
+      ruleId: 'COMMA_BEFORE_CONJUNCTION'
+    }
+  ];
+
+  // Создаем множество для отслеживания уже найденных ошибок
+  const foundErrorOffsets = new Set();
+
+  // Проверяем каждое правило
+  commaRules.forEach(rule => {
+    let match: RegExpExecArray | null;
+    while ((match = rule.regex.exec(text)) !== null) {
+      // Проверяем, есть ли уже запятая перед союзом
+      const beforeMatch = text.substring(0, match.index + match[1].length);
+
+      // Проверяем, не обнаружили ли мы уже ошибку с таким смещением
+      if (foundErrorOffsets.has(match.index)) {
+        continue;
+      }
+
+      // Проверяем, находится ли слово в начале предложения
+      const textBefore = text.substring(0, match.index).trim();
+      const isStartOfSentence =
+        match.index === 0 ||
+        textBefore === "" ||
+        /[.!?]\s*$/.test(textBefore) ||
+        /[—–-]\s*$/.test(textBefore);
+
+      // Для союзов в начале предложения запятая не нужна
+      if (isStartOfSentence) {
+        continue;
+      }
+
+      // Если перед союзом нет запятой, добавляем ошибку
+      if (!beforeMatch.endsWith(',')) {
+        // Вычисляем позицию для подсветки - последняя буква первого слова и пробел
+        const wordBeforeOffset = match.index;
+        const wordBeforeLength = match[1].length;
+        const spaceLength = match[2].length;
+
+        // Добавляем смещение в множество найденных ошибок
+        foundErrorOffsets.add(wordBeforeOffset);
+
+        // Вычисляем позицию для подсветки - только две буквы между которыми должна быть запятая
+        const lastLetterOffset = match.index + wordBeforeLength - 1;
+
+        // Получаем контекст для ошибки
+        const contextStart = Math.max(0, lastLetterOffset - 20);
+        const contextEnd = Math.min(text.length, lastLetterOffset + 20);
+        const contextText = text.substring(contextStart, contextEnd);
+
+        // Создаем ошибку с подсветкой только двух букв
+        commaErrors.push({
+          message: rule.errorMessage,
+          offset: lastLetterOffset,
+          length: 1 + spaceLength + 1,
+          replacements: [{ value: match[1].slice(-1) + ', ' + match[3].slice(0, 1) }],
+          context: {
+            text: contextText,
+            offset: contextStart
+          },
+          rule: {
+            id: rule.ruleId,
+            description: 'Проверка запятых в предложении'
+          }
+        });
+      }
+    }
+  });
+
+  return commaErrors;
 }
 
 function calculateReadabilityScore(text: string): number {
