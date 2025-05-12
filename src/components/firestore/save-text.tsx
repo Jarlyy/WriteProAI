@@ -11,13 +11,31 @@ console.log("SaveText компонент: Firestore и Auth доступны?", 
   authAvailable: Boolean(auth)
 });
 
+// Интерфейс для метрик читаемости
+interface ReadabilityMetrics {
+  fleschKincaid: number;
+  colemanLiau: number;
+  avgSentenceLength: number;
+  avgWordLength: number;
+  complexWordsPercentage: number;
+  lexicalDiversity: number;
+}
+
 interface SaveTextProps {
   text: string;
   correctedText: string;
-  errors?: any[]; // Добавляем массив ошибок
+  errors?: any[]; // Массив ошибок
+  readabilityScore?: number; // Оценка читаемости
+  readabilityMetrics?: ReadabilityMetrics; // Метрики читаемости
 }
 
-export function SaveText({ text, correctedText, errors = [] }: SaveTextProps) {
+export function SaveText({
+  text,
+  correctedText,
+  errors = [],
+  readabilityScore = 0,
+  readabilityMetrics
+}: SaveTextProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
@@ -86,7 +104,10 @@ export function SaveText({ text, correctedText, errors = [] }: SaveTextProps) {
         textLength: text.length,
         hasCorrections: Boolean(correctedText),
         saveDate: new Date().toISOString().split('T')[0], // Формат YYYY-MM-DD
+        errors: errors, // Сохраняем массив ошибок
         errorsCount: errors.length, // Добавляем количество ошибок
+        readabilityScore: readabilityScore, // Добавляем оценку читаемости
+        readabilityMetrics: readabilityMetrics, // Добавляем метрики читаемости
         title: generateTitle(text) // Добавляем заголовок
       };
 

@@ -52,8 +52,9 @@ export async function POST(request: Request) {
     // Получаем результаты от Yandex Speller
     const spellerErrors: YandexSpellerError[] = await response.json();
 
-    // Добавляем базовую оценку читаемости
-    const readabilityScore = calculateReadabilityScore(text);
+    // Получаем детальные метрики читаемости
+    const readabilityMetrics = calculateDetailedReadabilityMetrics(text);
+    const readabilityScore = readabilityMetrics.score;
 
     // Преобразуем ошибки Yandex Speller в формат, совместимый с LanguageTool
     const matches: LanguageToolMatch[] = spellerErrors.map(error => {
@@ -112,7 +113,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       matches: allMatches,
-      readabilityScore
+      readabilityScore: readabilityScore,
+      readabilityMetrics: {
+        fleschKincaid: readabilityMetrics.fleschKincaid,
+        colemanLiau: readabilityMetrics.colemanLiau,
+        avgSentenceLength: readabilityMetrics.avgSentenceLength,
+        avgWordLength: readabilityMetrics.avgWordLength,
+        complexWordsPercentage: readabilityMetrics.complexWordsPercentage,
+        lexicalDiversity: readabilityMetrics.lexicalDiversity
+      }
     });
   } catch (error) {
     console.error('Ошибка при проверке текста:', error);
@@ -120,7 +129,15 @@ export async function POST(request: Request) {
       {
         error: 'Ошибка при проверке текста',
         matches: [],
-        readabilityScore: 0
+        readabilityScore: 0,
+        readabilityMetrics: {
+          fleschKincaid: 0,
+          colemanLiau: 0,
+          avgSentenceLength: 0,
+          avgWordLength: 0,
+          complexWordsPercentage: 0,
+          lexicalDiversity: 0
+        }
       },
       { status: 500 }
     );
@@ -245,12 +262,142 @@ function checkCommasWithRegex(text: string): LanguageToolMatch[] {
   return commaErrors;
 }
 
-function calculateReadabilityScore(text: string): number {
-  // Простая реализация оценки читаемости
-  const words = text.split(/\s+/).length;
-  const sentences = text.split(/[.!?]+/).length;
-  const avgWordsPerSentence = words / Math.max(1, sentences);
+// Интерфейс для результатов оценки читаемости
+interface ReadabilityMetrics {
+  score: number;           // Общая оценка читаемости (от 0 до 1)
+  fleschKincaid: number;   // Индекс Флеша-Кинкейда (адаптированный для русского)
+  colemanLiau: number;     // Индекс Колмана-Лиау
+  avgSentenceLength: number; // Средняя длина предложения (в словах)
+  avgWordLength: number;   // Средняя длина слова (в символах)
+  complexWordsPercentage: number; // Процент сложных слов
+  lexicalDiversity: number; // Лексическое разнообразие
+}
 
-  // Шкала от 1 до 10 (чем выше - тем лучше)
-  return Math.min(10, Math.max(1, 10 - (avgWordsPerSentence / 5)));
+function calculateReadabilityScore(text: string): number {
+  // Получаем детальные метрики читаемости
+  const metrics = calculateDetailedReadabilityMetrics(text);
+
+  // Возвращаем общую оценку (для обратной совместимости)
+  return metrics.score;
+}
+
+function calculateDetailedReadabilityMetrics(text: string): ReadabilityMetrics {
+  // Если текст пустой, возвращаем нулевые метрики
+  if (!text || text.trim() === '') {
+    return {
+      score: 0,
+      fleschKincaid: 0,
+      colemanLiau: 0,
+      avgSentenceLength: 0,
+      avgWordLength: 0,
+      complexWordsPercentage: 0,
+      lexicalDiversity: 0
+    };
+  }
+
+  // Нормализуем текст (удаляем лишние пробелы, приводим к нижнему регистру)
+  const normalizedText = text.trim().toLowerCase();
+
+  // Разбиваем текст на предложения
+  // Учитываем различные знаки конца предложения и сохраняем непустые предложения
+  const sentences = normalizedText
+    .split(/[.!?…]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  // Разбиваем текст на слова (учитываем только буквенные слова)
+  const words = normalizedText
+    .replace(/[^а-яёa-z\s-]/gi, ' ')  // Заменяем все небуквенные символы на пробелы
+    .split(/\s+/)
+    .filter(w => w.length > 0);
+
+  // Считаем количество слогов в каждом слове
+  const syllablesByWord = words.map(word => countSyllables(word));
+  const totalSyllables = syllablesByWord.reduce((sum, count) => sum + count, 0);
+
+  // Считаем количество символов в каждом слове
+  const charsByWord = words.map(word => word.length);
+  const totalChars = charsByWord.reduce((sum, count) => sum + count, 0);
+
+  // Считаем количество сложных слов (слова с 4+ слогами)
+  const complexWords = syllablesByWord.filter(count => count >= 4).length;
+
+  // Вычисляем основные метрики
+  const sentenceCount = Math.max(1, sentences.length);
+  const wordCount = Math.max(1, words.length);
+  const avgSentenceLength = wordCount / sentenceCount;
+  const avgWordLength = totalChars / wordCount;
+  const avgSyllablesPerWord = totalSyllables / wordCount;
+  const complexWordsPercentage = (complexWords / wordCount) * 100;
+
+  // Вычисляем лексическое разнообразие (отношение уникальных слов к общему количеству)
+  const uniqueWords = new Set(words).size;
+  const lexicalDiversity = uniqueWords / wordCount;
+
+  // Вычисляем индекс Флеша-Кинкейда (адаптированный для русского языка)
+  // Формула: 206.835 - (1.3 * avgSentenceLength) - (60.1 * avgSyllablesPerWord)
+  const fleschKincaid = Math.max(0, Math.min(100,
+    206.835 - (1.3 * avgSentenceLength) - (60.1 * avgSyllablesPerWord)
+  ));
+
+  // Вычисляем индекс Колмана-Лиау
+  // Формула: 5.89 * (totalChars / wordCount) - 29.5 * (sentenceCount / wordCount) - 15.8
+  const colemanLiau = Math.max(0, Math.min(100,
+    5.89 * avgWordLength - 29.5 * (sentenceCount / wordCount) - 15.8 + 50
+  ));
+
+  // Вычисляем общую оценку читаемости (от 0 до 1)
+  // Комбинируем различные метрики с весами
+  const fleschWeight = 0.4;
+  const colemanWeight = 0.3;
+  const diversityWeight = 0.15;
+  const complexityWeight = 0.15;
+
+  // Нормализуем метрики к диапазону [0, 1]
+  const normalizedFlesch = fleschKincaid / 100;
+  const normalizedColeman = colemanLiau / 100;
+  const normalizedDiversity = Math.min(1, lexicalDiversity * 2); // Умножаем на 2, т.к. обычно < 0.5
+  const normalizedComplexity = 1 - (complexWordsPercentage / 100); // Инвертируем, т.к. меньше сложных слов = лучше
+
+  // Вычисляем взвешенную сумму
+  const score = (
+    normalizedFlesch * fleschWeight +
+    normalizedColeman * colemanWeight +
+    normalizedDiversity * diversityWeight +
+    normalizedComplexity * complexityWeight
+  );
+
+  // Возвращаем все метрики
+  return {
+    score,
+    fleschKincaid,
+    colemanLiau,
+    avgSentenceLength,
+    avgWordLength,
+    complexWordsPercentage,
+    lexicalDiversity
+  };
+}
+
+// Функция для подсчета слогов в слове
+function countSyllables(word: string): number {
+  // Адаптировано для русского языка
+  if (!word) return 0;
+
+  // Удаляем все небуквенные символы
+  word = word.toLowerCase().replace(/[^а-яёa-z]/g, '');
+
+  // Для русских слов
+  if (/[а-яё]/.test(word)) {
+    // Считаем гласные буквы
+    const vowels = word.match(/[аеёиоуыэюя]/g);
+    return vowels ? vowels.length : 1;
+  }
+
+  // Для английских слов (на случай, если в тексте есть английские слова)
+  // Считаем гласные, но учитываем дифтонги и немые e в конце
+  word = word.replace(/(?:[^laeiouy]|ed|[^laeiouy]e)$/, '');
+  word = word.replace(/^y/, '');
+  const syllables = word.match(/[aeiouy]{1,2}/g);
+  return syllables ? syllables.length : 1;
 }

@@ -8,7 +8,6 @@ import { Button } from "../../../components/ui/button";
 import { Moon, Sun, FileText, Home, ArrowLeft, Copy, Check, Clock, User, LogOut } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
-import { CheckHistoryItem, ReadabilityMetrics } from "../../../components/firestore/check-history";
 import { useAuth } from "../../../contexts/auth-context";
 import Link from "next/link";
 import {
@@ -20,10 +19,34 @@ import {
   DropdownMenuTrigger,
 } from "../../../components/ui/dropdown-menu";
 
-export default function CheckHistoryDetailPage() {
+// Интерфейс для метрик читаемости
+interface ReadabilityMetrics {
+  fleschKincaid: number;
+  colemanLiau: number;
+  avgSentenceLength: number;
+  avgWordLength: number;
+  complexWordsPercentage: number;
+  lexicalDiversity: number;
+}
+
+// Интерфейс для сохраненного текста
+interface SavedTextItem {
+  id?: string;
+  userId: string;
+  originalText: string;
+  correctedText: string;
+  errors: any[];
+  readabilityScore?: number;
+  readabilityMetrics?: ReadabilityMetrics;
+  createdAt: Date;
+  title?: string;
+  errorsCount?: number;
+}
+
+export default function SavedTextDetailPage() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
-  const [historyItem, setHistoryItem] = useState<CheckHistoryItem | null>(null);
+  const [savedText, setSavedText] = useState<SavedTextItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
@@ -52,7 +75,7 @@ export default function CheckHistoryDetailPage() {
     }
   }, []);
 
-  // Загружаем данные истории проверки
+  // Загружаем данные сохраненного текста
   useEffect(() => {
     // Если авторизация все еще загружается, ждем
     if (authLoading) {
@@ -60,19 +83,19 @@ export default function CheckHistoryDetailPage() {
       return;
     }
 
-    const loadHistoryItem = async () => {
-      console.log("Загрузка данных истории проверки...");
+    const loadSavedText = async () => {
+      console.log("Загрузка данных сохраненного текста...");
       console.log("Статус авторизации из контекста:", user ? "Авторизован" : "Не авторизован");
 
       if (!user) {
-        console.log("Пользователь не авторизован (из контекста), история не загружена");
-        setError("Необходимо войти в аккаунт для просмотра истории проверок");
+        console.log("Пользователь не авторизован (из контекста), текст не загружен");
+        setError("Необходимо войти в аккаунт для просмотра сохраненных текстов");
         setLoading(false);
         return;
       }
 
       try {
-        const docRef = doc(db, "checkHistory", id);
+        const docRef = doc(db, "texts", id);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
@@ -80,7 +103,7 @@ export default function CheckHistoryDetailPage() {
             const data = docSnap.data();
 
             // Проверяем наличие необходимых полей
-            if (!data.timestamp || !data.userId || !data.originalText) {
+            if (!data.createdAt || !data.userId || !data.originalText) {
               setError("Запись имеет неверный формат");
               setLoading(false);
               return;
@@ -94,10 +117,10 @@ export default function CheckHistoryDetailPage() {
             }
 
             // Преобразуем timestamp в Date
-            const timestamp = data.timestamp.toDate ? data.timestamp.toDate() : new Date(data.timestamp);
+            const createdAt = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
 
             // Создаем объект с безопасными данными
-            const safeItem: CheckHistoryItem = {
+            const safeItem: SavedTextItem = {
               id: docSnap.id,
               userId: data.userId,
               originalText: data.originalText || "",
@@ -112,11 +135,12 @@ export default function CheckHistoryDetailPage() {
                 complexWordsPercentage: 0,
                 lexicalDiversity: 0
               },
-              timestamp: timestamp,
-              title: data.title || "Без названия"
+              createdAt: createdAt,
+              title: data.title || "Без названия",
+              errorsCount: data.errorsCount || 0
             };
 
-            setHistoryItem(safeItem);
+            setSavedText(safeItem);
           } catch (error) {
             console.error("Ошибка при обработке документа:", error);
             setError("Ошибка при загрузке записи");
@@ -134,7 +158,7 @@ export default function CheckHistoryDetailPage() {
       }
     };
 
-    loadHistoryItem();
+    loadSavedText();
   }, [id, user, authLoading]);
 
   // Функция для переключения темы
@@ -187,9 +211,9 @@ export default function CheckHistoryDetailPage() {
     }, 2000);
   };
 
-  // Функция для возврата к списку истории
+  // Функция для возврата к списку избранных текстов
   const goBack = () => {
-    router.push("/check-history");
+    router.push("/saved-texts");
   };
 
   return (
@@ -232,7 +256,7 @@ export default function CheckHistoryDetailPage() {
                   variant="ghost"
                   size="sm"
                   asChild
-                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+                  className="text-white bg-white/20 hover:bg-white/30 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
                 >
                   <Link href="/saved-texts">
                     <FileText className="h-4 w-4 mr-2" />
@@ -244,7 +268,7 @@ export default function CheckHistoryDetailPage() {
                   variant="ghost"
                   size="sm"
                   asChild
-                  className="text-white bg-white/20 hover:bg-white/30 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
                 >
                   <Link href="/check-history">
                     <Clock className="h-4 w-4 mr-2" />
@@ -331,7 +355,7 @@ export default function CheckHistoryDetailPage() {
               className="flex items-center"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
-              Назад к истории
+              Назад к избранному
             </Button>
           </div>
 
@@ -342,25 +366,25 @@ export default function CheckHistoryDetailPage() {
               <div className="text-center py-8 text-red-600 dark:text-red-400">
                 {error}
               </div>
-            ) : historyItem ? (
+            ) : savedText ? (
               <div className="space-y-6">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-2xl font-bold">{historyItem.title}</h2>
+                    <h2 className="text-2xl font-bold">{savedText.title}</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {historyItem.timestamp.toLocaleDateString()} {historyItem.timestamp.toLocaleTimeString()}
+                      {savedText.createdAt.toLocaleDateString()} {savedText.createdAt.toLocaleTimeString()}
                     </p>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Button
-                      onClick={() => copyToClipboard(historyItem.correctedText)}
+                      onClick={() => copyToClipboard(savedText.correctedText || savedText.originalText)}
                       className={`p-2 rounded-full transition-all duration-300 ${
                         isCopied
                           ? "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
                           : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
                       }`}
-                      title={isCopied ? "Скопировано!" : "Копировать исправленный текст"}
-                      aria-label={isCopied ? "Скопировано!" : "Копировать исправленный текст"}
+                      title={isCopied ? "Скопировано!" : "Копировать текст"}
+                      aria-label={isCopied ? "Скопировано!" : "Копировать текст"}
                     >
                       {isCopied ? (
                         <Check className="h-4 w-4 text-white" />
@@ -372,73 +396,75 @@ export default function CheckHistoryDetailPage() {
                 </div>
 
                 {/* Информация о читаемости */}
-                <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20 space-y-4">
-                  <h3 className="font-semibold mb-2 text-black dark:text-white">Читаемость текста:</h3>
-                  <div className="flex justify-between text-black dark:text-white">
-                    <span>Уровень читаемости</span>
-                    <span>{Math.round(historyItem.readabilityScore)}%</span>
-                  </div>
-                  <div className="relative pt-1">
-                    <div className="w-full h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-600 dark:bg-blue-500 rounded-full transition-all duration-500"
-                        style={{ width: `${Math.round(historyItem.readabilityScore)}%` }}
-                      ></div>
+                {savedText.readabilityScore !== undefined && (
+                  <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20 space-y-4">
+                    <h3 className="font-semibold mb-2 text-black dark:text-white">Читаемость текста:</h3>
+                    <div className="flex justify-between text-black dark:text-white">
+                      <span>Уровень читаемости</span>
+                      <span>{Math.round(savedText.readabilityScore)}%</span>
                     </div>
-                    <div className="flex justify-between mt-1 text-xs text-gray-600 dark:text-gray-400">
-                      <span>0%</span>
-                      <span>25%</span>
-                      <span>50%</span>
-                      <span>75%</span>
-                      <span>100%</span>
+                    <div className="relative pt-1">
+                      <div className="w-full h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-blue-600 dark:bg-blue-500 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.round(savedText.readabilityScore)}%` }}
+                        ></div>
+                      </div>
+                      <div className="flex justify-between mt-1 text-xs text-gray-600 dark:text-gray-400">
+                        <span>0%</span>
+                        <span>25%</span>
+                        <span>50%</span>
+                        <span>75%</span>
+                        <span>100%</span>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Детальные метрики читаемости */}
-                  <div className="mt-4">
-                    <h4 className="font-semibold text-sm mb-2 text-black dark:text-white">Детальные метрики:</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
-                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Индекс Флеша-Кинкейда</div>
-                        <div className="text-lg font-semibold text-black dark:text-white">
-                          {historyItem.readabilityMetrics?.fleschKincaid ? historyItem.readabilityMetrics.fleschKincaid.toFixed(1) : "0.0"}
+                    {/* Детальные метрики читаемости */}
+                    <div className="mt-4">
+                      <h4 className="font-semibold text-sm mb-2 text-black dark:text-white">Детальные метрики:</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Индекс Флеша-Кинкейда</div>
+                          <div className="text-lg font-semibold text-black dark:text-white">
+                            {savedText.readabilityMetrics?.fleschKincaid ? savedText.readabilityMetrics.fleschKincaid.toFixed(1) : "0.0"}
+                          </div>
                         </div>
-                      </div>
-                      <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
-                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Индекс Колман-Лиау</div>
-                        <div className="text-lg font-semibold text-black dark:text-white">
-                          {historyItem.readabilityMetrics?.colemanLiau ? historyItem.readabilityMetrics.colemanLiau.toFixed(1) : "0.0"}
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Индекс Колман-Лиау</div>
+                          <div className="text-lg font-semibold text-black dark:text-white">
+                            {savedText.readabilityMetrics?.colemanLiau ? savedText.readabilityMetrics.colemanLiau.toFixed(1) : "0.0"}
+                          </div>
                         </div>
-                      </div>
-                      <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
-                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Средняя длина предложения</div>
-                        <div className="text-lg font-semibold text-black dark:text-white">
-                          {historyItem.readabilityMetrics?.avgSentenceLength ? historyItem.readabilityMetrics.avgSentenceLength.toFixed(1) : "0.0"} слов
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Средняя длина предложения</div>
+                          <div className="text-lg font-semibold text-black dark:text-white">
+                            {savedText.readabilityMetrics?.avgSentenceLength ? savedText.readabilityMetrics.avgSentenceLength.toFixed(1) : "0.0"} слов
+                          </div>
                         </div>
-                      </div>
-                      <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
-                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Средняя длина слова</div>
-                        <div className="text-lg font-semibold text-black dark:text-white">
-                          {historyItem.readabilityMetrics?.avgWordLength ? historyItem.readabilityMetrics.avgWordLength.toFixed(1) : "0.0"} символов
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Средняя длина слова</div>
+                          <div className="text-lg font-semibold text-black dark:text-white">
+                            {savedText.readabilityMetrics?.avgWordLength ? savedText.readabilityMetrics.avgWordLength.toFixed(1) : "0.0"} символов
+                          </div>
                         </div>
-                      </div>
-                      <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
-                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Сложные слова</div>
-                        <div className="text-lg font-semibold text-black dark:text-white">
-                          {historyItem.readabilityMetrics?.complexWordsPercentage ? (historyItem.readabilityMetrics.complexWordsPercentage * 100).toFixed(1) : "0.0"}%
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Сложные слова</div>
+                          <div className="text-lg font-semibold text-black dark:text-white">
+                            {savedText.readabilityMetrics?.complexWordsPercentage ? (savedText.readabilityMetrics.complexWordsPercentage * 100).toFixed(1) : "0.0"}%
+                          </div>
                         </div>
-                      </div>
-                      <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
-                        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Лексическое разнообразие</div>
-                        <div className="text-lg font-semibold text-black dark:text-white">
-                          {historyItem.readabilityMetrics?.lexicalDiversity
-                            ? Math.min(100, (historyItem.readabilityMetrics.lexicalDiversity * 100)).toFixed(1)
-                            : "0.0"}%
+                        <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Лексическое разнообразие</div>
+                          <div className="text-lg font-semibold text-black dark:text-white">
+                            {savedText.readabilityMetrics?.lexicalDiversity
+                              ? Math.min(100, (savedText.readabilityMetrics.lexicalDiversity * 100)).toFixed(1)
+                              : "0.0"}%
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Исходный текст */}
                 <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
@@ -449,29 +475,31 @@ export default function CheckHistoryDetailPage() {
                       boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
                     }}
                   >
-                    {historyItem.originalText}
+                    {savedText.originalText}
                   </div>
                 </div>
 
                 {/* Исправленный текст */}
-                <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
-                  <h3 className="font-semibold mb-2 text-black dark:text-white">Исправленный текст:</h3>
-                  <div
-                    className="whitespace-pre-wrap text-black dark:text-white p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 max-h-[300px] overflow-auto"
-                    style={{
-                      boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
-                    }}
-                  >
-                    {historyItem.correctedText}
+                {savedText.correctedText && (
+                  <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
+                    <h3 className="font-semibold mb-2 text-black dark:text-white">Исправленный текст:</h3>
+                    <div
+                      className="whitespace-pre-wrap text-black dark:text-white p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 max-h-[300px] overflow-auto"
+                      style={{
+                        boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
+                      }}
+                    >
+                      {savedText.correctedText}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Информация об ошибках */}
                 <div className="border rounded-lg p-4 bg-red-50 dark:bg-red-900/20">
                   <h3 className="font-semibold mb-2 text-black dark:text-white">Найденные ошибки:</h3>
-                  {historyItem.errors && Array.isArray(historyItem.errors) && historyItem.errors.length > 0 ? (
+                  {savedText.errors && Array.isArray(savedText.errors) && savedText.errors.length > 0 ? (
                     <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
-                      {historyItem.errors.map((error, index) => (
+                      {savedText.errors.map((error, index) => (
                         <li key={index}>
                           {error && typeof error === 'object' && error.message ? error.message :
                            typeof error === 'string' ? error : 'Неизвестная ошибка'}

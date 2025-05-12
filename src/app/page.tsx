@@ -77,6 +77,14 @@ export default function HomePage() {
   const [semanticErrors, setSemanticErrors] = useState([]);
   const [otherErrors, setOtherErrors] = useState([]);
   const [readabilityScore, setReadabilityScore] = useState(0);
+  const [readabilityMetrics, setReadabilityMetrics] = useState({
+    fleschKincaid: 0,
+    colemanLiau: 0,
+    avgSentenceLength: 0,
+    avgWordLength: 0,
+    complexWordsPercentage: 0,
+    lexicalDiversity: 0
+  });
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
@@ -147,6 +155,14 @@ export default function HomePage() {
       setSemanticErrors([]);
       setOtherErrors([]);
       setReadabilityScore(0);
+      setReadabilityMetrics({
+        fleschKincaid: 0,
+        colemanLiau: 0,
+        avgSentenceLength: 0,
+        avgWordLength: 0,
+        complexWordsPercentage: 0,
+        lexicalDiversity: 0
+      });
     }
   };
 
@@ -161,6 +177,14 @@ export default function HomePage() {
     setSemanticErrors([]);
     setOtherErrors([]);
     setReadabilityScore(0);
+    setReadabilityMetrics({
+      fleschKincaid: 0,
+      colemanLiau: 0,
+      avgSentenceLength: 0,
+      avgWordLength: 0,
+      complexWordsPercentage: 0,
+      lexicalDiversity: 0
+    });
   };
 
   // Функция для открытия диалога подтверждения выхода
@@ -774,7 +798,24 @@ export default function HomePage() {
       setSemanticErrors(semanticErrorsList);
       setOtherErrors(otherErrorsList);
       // Округляем значение читаемости до целого числа
-      setReadabilityScore(Math.round(data.readabilityScore * 10));
+      setReadabilityScore(Math.round(data.readabilityScore * 100));
+
+      // Сохраняем детальные метрики читаемости
+      if (data.readabilityMetrics) {
+        // Ограничиваем лексическое разнообразие до 100%
+        const lexicalDiversity = Math.min(100, Math.round(data.readabilityMetrics.lexicalDiversity * 100));
+
+        const updatedMetrics = {
+          fleschKincaid: Math.round(data.readabilityMetrics.fleschKincaid),
+          colemanLiau: Math.round(data.readabilityMetrics.colemanLiau),
+          avgSentenceLength: Math.round(data.readabilityMetrics.avgSentenceLength * 10) / 10,
+          avgWordLength: Math.round(data.readabilityMetrics.avgWordLength * 10) / 10,
+          complexWordsPercentage: Math.round(data.readabilityMetrics.complexWordsPercentage),
+          lexicalDiversity: lexicalDiversity
+        };
+
+        setReadabilityMetrics(updatedMetrics);
+      }
 
       // Генерируем исправленный текст
       const corrected = generateCorrectedText(text, allErrors);
@@ -789,7 +830,23 @@ export default function HomePage() {
       if (user) {
         console.log("Вызов функции autoSaveCheckHistory (пользователь из контекста)...");
         try {
-          await autoSaveCheckHistory(text, corrected, allErrors, Math.round(data.readabilityScore * 10));
+          // Создаем объект метрик читаемости из данных API
+          const metricsToSave = data.readabilityMetrics ? {
+            fleschKincaid: Math.round(data.readabilityMetrics.fleschKincaid),
+            colemanLiau: Math.round(data.readabilityMetrics.colemanLiau),
+            avgSentenceLength: Math.round(data.readabilityMetrics.avgSentenceLength * 10) / 10,
+            avgWordLength: Math.round(data.readabilityMetrics.avgWordLength * 10) / 10,
+            complexWordsPercentage: Math.round(data.readabilityMetrics.complexWordsPercentage),
+            lexicalDiversity: Math.min(1, data.readabilityMetrics.lexicalDiversity) // Сохраняем в диапазоне [0, 1]
+          } : undefined;
+
+          await autoSaveCheckHistory(
+            text,
+            corrected,
+            allErrors,
+            Math.round(data.readabilityScore * 100),
+            metricsToSave
+          );
           console.log("Функция autoSaveCheckHistory выполнена успешно");
         } catch (saveError) {
           console.error("Ошибка при сохранении истории:", saveError);
@@ -987,27 +1044,157 @@ export default function HomePage() {
             </div>
 
             {readabilityScore > 0 && (
-              <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20 space-y-2">
+              <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20 space-y-4">
                 <h2 className="font-semibold mb-2 text-black dark:text-white">Читаемость текста:</h2>
-                <div className="flex justify-between text-black dark:text-white">
-                  <span>Уровень читаемости</span>
-                  <span>{Math.round(readabilityScore)}%</span>
-                </div>
-                <div className="relative pt-1">
-                  <div className="w-full h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-600 dark:bg-blue-500 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.round(readabilityScore)}%` }}
-                    ></div>
+
+                {/* Общая оценка читаемости */}
+                <div className="space-y-2">
+                  <div className="flex justify-between text-black dark:text-white">
+                    <span>Общая оценка читаемости</span>
+                    <span>{Math.round(readabilityScore)}%</span>
                   </div>
-                  <div className="flex justify-between mt-1 text-xs text-gray-600 dark:text-gray-400">
-                    <span>0%</span>
-                    <span>25%</span>
-                    <span>50%</span>
-                    <span>75%</span>
-                    <span>100%</span>
+                  <div className="relative pt-1">
+                    <div className="w-full h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-600 dark:bg-blue-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.round(readabilityScore)}%` }}
+                      ></div>
+                    </div>
+                    <div className="flex justify-between mt-1 text-xs text-gray-600 dark:text-gray-400">
+                      <span>0%</span>
+                      <span>25%</span>
+                      <span>50%</span>
+                      <span>75%</span>
+                      <span>100%</span>
+                    </div>
                   </div>
                 </div>
+
+                {/* Детальные метрики */}
+                <details className="mt-2">
+                  <summary className="cursor-pointer font-semibold text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                    Детальные метрики читаемости
+                  </summary>
+                  <div className="mt-3 space-y-4">
+                    {/* Индекс Флеша-Кинкейда */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-black dark:text-white">
+                        <span className="text-sm">Индекс Флеша-Кинкейда</span>
+                        <span className="text-sm">{readabilityMetrics.fleschKincaid}</span>
+                      </div>
+                      <div className="relative pt-1">
+                        <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-green-500 dark:bg-green-600 rounded-full transition-all duration-500"
+                            style={{ width: `${readabilityMetrics.fleschKincaid}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Чем выше значение, тем легче читается текст. Учитывает длину предложений и слогов.
+                      </div>
+                    </div>
+
+                    {/* Индекс Колмана-Лиау */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-black dark:text-white">
+                        <span className="text-sm">Индекс Колмана-Лиау</span>
+                        <span className="text-sm">{readabilityMetrics.colemanLiau}</span>
+                      </div>
+                      <div className="relative pt-1">
+                        <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-purple-500 dark:bg-purple-600 rounded-full transition-all duration-500"
+                            style={{ width: `${readabilityMetrics.colemanLiau}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Оценивает читаемость на основе количества символов, слов и предложений.
+                      </div>
+                    </div>
+
+                    {/* Средняя длина предложения */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-black dark:text-white">
+                        <span className="text-sm">Средняя длина предложения</span>
+                        <span className="text-sm">{readabilityMetrics.avgSentenceLength} слов</span>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Оптимальная длина: 15-20 слов. {
+                          readabilityMetrics.avgSentenceLength > 25
+                            ? 'Рекомендуется сократить длину предложений для улучшения читаемости.'
+                            : readabilityMetrics.avgSentenceLength < 8
+                              ? 'Предложения слишком короткие, текст может казаться отрывистым.'
+                              : 'Хорошая длина предложений для легкого восприятия.'
+                        }
+                      </div>
+                    </div>
+
+                    {/* Средняя длина слова */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-black dark:text-white">
+                        <span className="text-sm">Средняя длина слова</span>
+                        <span className="text-sm">{readabilityMetrics.avgWordLength} символов</span>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {
+                          readabilityMetrics.avgWordLength > 7
+                            ? 'В тексте много длинных слов. Попробуйте заменить их более короткими синонимами.'
+                            : 'Хорошая средняя длина слов для легкого восприятия.'
+                        }
+                      </div>
+                    </div>
+
+                    {/* Процент сложных слов */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-black dark:text-white">
+                        <span className="text-sm">Процент сложных слов</span>
+                        <span className="text-sm">{readabilityMetrics.complexWordsPercentage}%</span>
+                      </div>
+                      <div className="relative pt-1">
+                        <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-red-500 dark:bg-red-600 rounded-full transition-all duration-500"
+                            style={{ width: `${readabilityMetrics.complexWordsPercentage}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Сложные слова - слова с 4 и более слогами. {
+                          readabilityMetrics.complexWordsPercentage > 15
+                            ? 'Рекомендуется уменьшить количество сложных слов.'
+                            : 'Хороший баланс простых и сложных слов.'
+                        }
+                      </div>
+                    </div>
+
+                    {/* Лексическое разнообразие */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-black dark:text-white">
+                        <span className="text-sm">Лексическое разнообразие</span>
+                        <span className="text-sm">{Math.min(100, readabilityMetrics.lexicalDiversity)}%</span>
+                      </div>
+                      <div className="relative pt-1">
+                        <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-yellow-500 dark:bg-yellow-600 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, readabilityMetrics.lexicalDiversity)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Отношение уникальных слов к общему количеству. {
+                          readabilityMetrics.lexicalDiversity < 40
+                            ? 'Рекомендуется использовать более разнообразную лексику.'
+                            : readabilityMetrics.lexicalDiversity > 80
+                              ? 'Очень высокое лексическое разнообразие. Возможно, стоит использовать больше повторений ключевых терминов.'
+                              : 'Хороший уровень лексического разнообразия.'
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </details>
               </div>
             )}
 
@@ -1263,7 +1450,13 @@ export default function HomePage() {
                     <div className="flex justify-between items-center mb-2">
                       <h2 className="font-semibold text-black dark:text-white">Исправленный текст:</h2>
                       <div className="flex items-center space-x-2">
-                        <SaveText text={text} correctedText={correctedText} errors={errors} />
+                        <SaveText
+                          text={text}
+                          correctedText={correctedText}
+                          errors={errors}
+                          readabilityScore={readabilityScore}
+                          readabilityMetrics={readabilityMetrics}
+                        />
                         <Button
                           onClick={() => copyToClipboard(correctedText)}
                           className={`p-2 rounded-full transition-all duration-300 ${

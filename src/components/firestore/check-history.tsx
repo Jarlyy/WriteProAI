@@ -10,6 +10,16 @@ import { Trash2, Clock } from "lucide-react";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { useAuth } from "../../contexts/auth-context";
 
+// Интерфейс для метрик читаемости
+export interface ReadabilityMetrics {
+  fleschKincaid: number;
+  colemanLiau: number;
+  avgSentenceLength: number;
+  avgWordLength: number;
+  complexWordsPercentage: number;
+  lexicalDiversity: number;
+}
+
 // Интерфейс для истории проверок
 export interface CheckHistoryItem {
   id?: string;
@@ -18,6 +28,7 @@ export interface CheckHistoryItem {
   correctedText: string;
   errors: any[];
   readabilityScore: number;
+  readabilityMetrics?: ReadabilityMetrics;
   timestamp: Date;
   title: string;
 }
@@ -27,12 +38,14 @@ export function SaveCheckHistory({
   originalText,
   correctedText,
   errors,
-  readabilityScore
+  readabilityScore,
+  readabilityMetrics
 }: {
   originalText: string;
   correctedText: string;
   errors: any[];
   readabilityScore: number;
+  readabilityMetrics?: ReadabilityMetrics;
 }) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
@@ -73,6 +86,7 @@ export function SaveCheckHistory({
         correctedText,
         errors,
         readabilityScore,
+        readabilityMetrics,
         timestamp: new Date(),
         title: title || generateTitle(originalText)
       };
@@ -206,6 +220,14 @@ export function CheckHistoryList() {
               correctedText: data.correctedText || "",
               errors: Array.isArray(data.errors) ? data.errors : [],
               readabilityScore: typeof data.readabilityScore === 'number' ? data.readabilityScore : 0,
+              readabilityMetrics: data.readabilityMetrics || {
+                fleschKincaid: 0,
+                colemanLiau: 0,
+                avgSentenceLength: 0,
+                avgWordLength: 0,
+                complexWordsPercentage: 0,
+                lexicalDiversity: 0
+              },
               timestamp: timestamp,
               title: data.title || "Без названия"
             };

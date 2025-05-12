@@ -5,6 +5,7 @@ import { collection, query, where, orderBy, getDocs, limit, doc, deleteDoc } fro
 import { signOut } from "firebase/auth";
 import { db, auth } from "../../lib/firebase-client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Trash2, Moon, Sun, FileText, Home, LogOut, Clock, User } from "lucide-react";
 import {
   DropdownMenu,
@@ -32,8 +33,11 @@ interface SavedText {
   saveDate?: string;
   textLength?: number;
   hasCorrections?: boolean;
-  errorsCount?: number; // Добавляем поле для количества ошибок
-  title?: string; // Добавляем поле для заголовка
+  errorsCount?: number; // Количество ошибок
+  readabilityScore?: number; // Оценка читаемости
+  errors?: any[]; // Массив ошибок
+  readabilityMetrics?: any; // Метрики читаемости
+  title?: string; // Заголовок
 }
 
 export default function SavedTextsPage() {
@@ -48,6 +52,9 @@ export default function SavedTextsPage() {
 
   // Используем контекст авторизации с мемоизацией для предотвращения ненужных ререндеров
   const { user, loading: authLoading } = useAuth();
+
+  // Инициализируем роутер для навигации
+  const router = useRouter();
 
   // Мемоизируем пользователя, чтобы избежать ненужных ререндеров
   const memoizedUser = useMemo(() => user, [user?.uid]);
@@ -169,55 +176,8 @@ export default function SavedTextsPage() {
   };
 
   // Функция для просмотра деталей сохраненного текста
-  const viewSavedText = (text: SavedText) => {
-    // Находим блок с деталями текста
-    const textBlock = document.getElementById(`text-${text.id}`);
-    if (!textBlock) return;
-
-    // Находим скрытый блок с деталями
-    const hiddenDetails = textBlock.querySelector('.hidden');
-    if (!hiddenDetails) return;
-
-    // Создаем новую страницу для просмотра деталей текста
-    const detailsPage = document.createElement('div');
-    detailsPage.className = 'fixed inset-0 bg-white dark:bg-gray-900 z-50 overflow-auto p-6';
-
-    // Добавляем заголовок и кнопку закрытия
-    const header = document.createElement('div');
-    header.className = 'flex justify-between items-center mb-6';
-    header.innerHTML = `
-      <h2 class="text-2xl font-bold">${text.title || 'Сохраненный текст'}</h2>
-      <button class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-    `;
-
-    // Добавляем содержимое
-    const content = document.createElement('div');
-    content.innerHTML = hiddenDetails.innerHTML;
-
-    // Показываем все details
-    const detailsElements = content.querySelectorAll('details');
-    detailsElements.forEach(details => {
-      (details as HTMLDetailsElement).open = true;
-    });
-
-    // Собираем все вместе
-    detailsPage.appendChild(header);
-    detailsPage.appendChild(content);
-
-    // Добавляем на страницу
-    document.body.appendChild(detailsPage);
-
-    // Добавляем обработчик для кнопки закрытия
-    const closeButton = header.querySelector('button');
-    if (closeButton) {
-      closeButton.addEventListener('click', () => {
-        document.body.removeChild(detailsPage);
-      });
-    }
+  const viewSavedText = (textId: string) => {
+    router.push(`/saved-texts/${textId}`);
   };
 
   // Функция для удаления текста
@@ -322,9 +282,12 @@ export default function SavedTextsPage() {
           createdAt: data.createdAt ? new Date(data.createdAt.toDate()) : new Date(),
           // Добавляем дополнительные метаданные для UI
           saveDate: data.saveDate || new Date().toISOString().split('T')[0],
-          textLength: data.textLength || 0,
+          textLength: data.textLength || data.originalText?.length || 0,
           hasCorrections: data.hasCorrections || false,
-          errorsCount: data.errorsCount || 0, // Добавляем количество ошибок
+          errorsCount: data.errorsCount || (Array.isArray(data.errors) ? data.errors.length : 0), // Добавляем количество ошибок
+          readabilityScore: typeof data.readabilityScore === 'number' ? data.readabilityScore : 0, // Добавляем оценку читаемости
+          errors: Array.isArray(data.errors) ? data.errors : [], // Добавляем ошибки
+          readabilityMetrics: data.readabilityMetrics || null, // Добавляем метрики читаемости
           title: data.title || data.originalText?.substring(0, 30) + (data.originalText?.length > 30 ? "..." : "") // Добавляем заголовок или генерируем его из текста
         };
       });
@@ -542,22 +505,20 @@ export default function SavedTextsPage() {
                 <div
                   id={`text-${text.id}`}
                   key={text.id}
-                  className="border rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                  onClick={() => viewSavedText(text.id)}
+                  className="border rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all cursor-pointer"
                 >
                   <div className="flex justify-between items-start">
-                    <div
-                      className="flex-grow cursor-pointer"
-                      onClick={() => viewSavedText(text)}
-                    >
+                    <div className="flex-grow">
                       <h3 className="font-semibold text-lg hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                         {text.title || text.originalText.substring(0, 30) + (text.originalText.length > 30 ? "..." : "")}
                       </h3>
                       <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Сохранено: {text.saveDate || text.createdAt.toLocaleDateString()}
+                        {text.saveDate || text.createdAt.toLocaleDateString()}
                       </p>
                       <div className="mt-2 flex items-center">
                         <span className="text-sm mr-4">
-                          {text.textLength ? `${text.textLength} символов` : ''}
+                          Читаемость: {text.readabilityScore || 0}%
                         </span>
                         <span className="text-sm">
                           Ошибок: {text.errorsCount || 0}
@@ -592,29 +553,6 @@ export default function SavedTextsPage() {
                     <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
                       {text.originalText}
                     </p>
-                  </div>
-
-                  {/* Скрытые детали, которые будут показаны при клике */}
-                  <div className="hidden">
-                    <details className="mb-2">
-                      <summary className="cursor-pointer font-semibold text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                        Исходный текст
-                      </summary>
-                      <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700 whitespace-pre-wrap text-black dark:text-white max-h-[200px] overflow-auto">
-                        {text.originalText}
-                      </div>
-                    </details>
-
-                    {text.correctedText && (
-                      <details>
-                        <summary className="cursor-pointer font-semibold text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                          Исправленный текст
-                        </summary>
-                        <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 rounded border border-gray-200 dark:border-gray-700 whitespace-pre-wrap text-black dark:text-white max-h-[200px] overflow-auto">
-                          {text.correctedText}
-                        </div>
-                      </details>
-                    )}
                   </div>
                 </div>
               ))}

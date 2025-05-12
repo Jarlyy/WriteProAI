@@ -1,6 +1,16 @@
 import { collection, addDoc } from "firebase/firestore";
 import { db, auth } from "./firebase-client";
 
+// Интерфейс для метрик читаемости
+export interface ReadabilityMetrics {
+  fleschKincaid: number;
+  colemanLiau: number;
+  avgSentenceLength: number;
+  avgWordLength: number;
+  complexWordsPercentage: number;
+  lexicalDiversity: number;
+}
+
 // Интерфейс для истории проверок
 export interface CheckHistoryItem {
   id?: string;
@@ -9,6 +19,7 @@ export interface CheckHistoryItem {
   correctedText: string;
   errors: any[];
   readabilityScore: number;
+  readabilityMetrics?: ReadabilityMetrics;
   timestamp: Date;
   title: string;
 }
@@ -80,7 +91,8 @@ export const autoSaveCheckHistory = async (
   originalText: string,
   correctedText: string,
   errors: any[],
-  readabilityScore: number
+  readabilityScore: number,
+  readabilityMetrics?: ReadabilityMetrics
 ): Promise<boolean> => {
   // Проверяем, авторизован ли пользователь
   console.log("Попытка сохранения истории проверки...");
@@ -117,6 +129,7 @@ export const autoSaveCheckHistory = async (
       correctedText: correctedText.substring(0, 10000), // Ограничиваем длину текста
       errors: sanitizedErrors,
       readabilityScore,
+      readabilityMetrics,
       timestamp: new Date(),
       title: generateTitle(originalText)
     };
@@ -143,6 +156,7 @@ export const autoSaveCheckHistory = async (
         correctedText: historyItem.correctedText,
         errors: historyItem.errors,
         readabilityScore: historyItem.readabilityScore,
+        readabilityMetrics: historyItem.readabilityMetrics,
         title: historyItem.title
       });
     }
@@ -181,6 +195,7 @@ export const autoSaveCheckHistory = async (
               correctedText: historyItem.correctedText,
               errors: historyItem.errors,
               readabilityScore: historyItem.readabilityScore,
+              readabilityMetrics: historyItem.readabilityMetrics,
               title: historyItem.title
             });
 
