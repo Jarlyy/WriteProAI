@@ -417,6 +417,13 @@ export default function SavedTextsPage() {
                         </DropdownMenuLabel>
                       )}
                       <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/account" className="flex items-center cursor-pointer">
+                          <User className="h-4 w-4 mr-2" />
+                          Настройки аккаунта
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleSignOutClick} className="text-red-500 dark:text-red-400 cursor-pointer">
                         <LogOut className="h-4 w-4 mr-2" />
                         Выйти
