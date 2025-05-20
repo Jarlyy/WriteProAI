@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Textarea } from "../components/ui/textarea";
 import { Button } from "../components/ui/button";
-import { Moon, Sun, Copy, Check, LogOut, X, Trash2, FileText, Clock, Home, User } from "lucide-react";
+import { Moon, Sun, Copy, Check, LogOut, X, Trash2, FileText, Clock, Home, User, Book } from "lucide-react";
 import { SaveText } from "../components/firestore/save-text";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { auth } from "../lib/firebase-client";
@@ -290,9 +290,31 @@ export default function HomePage() {
   const generateCorrectedText = useCallback((text, errors) => {
     if (!text || errors.length === 0) return text;
 
+    // Получаем словарь пользователя из localStorage, если он есть
+    let userDictionary: string[] = [];
+    try {
+      const storedDictionary = localStorage.getItem('userDictionary');
+      if (storedDictionary) {
+        userDictionary = JSON.parse(storedDictionary);
+        console.log('Загружен словарь пользователя из localStorage:', userDictionary);
+      }
+    } catch (error) {
+      console.error('Ошибка при загрузке словаря пользователя из localStorage:', error);
+    }
+
     // Сортируем ошибки по позиции в обратном порядке,
     // чтобы исправления не влияли на позиции других ошибок
-    const sortedErrors = [...errors].sort((a, b) => b.offset - a.offset);
+    const sortedErrors = [...errors]
+      // Фильтруем ошибки, исключая слова из словаря пользователя
+      .filter(error => {
+        const errorText = text.slice(error.offset, error.offset + error.length);
+        if (userDictionary.includes(errorText.toLowerCase())) {
+          console.log(`Слово "${errorText}" найдено в словаре пользователя и исключено из исправлений`);
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => b.offset - a.offset);
 
     let corrected = text;
 
@@ -571,12 +593,18 @@ export default function HomePage() {
       // Сохраняем текущий текст как проверяемый
       setCheckedText(text);
 
+      // Передаем ID пользователя в API-запрос, если пользователь авторизован
+      const userId = memoizedUser ? memoizedUser.uid : null;
+
       const response = await fetch('/api/check', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          text,
+          userId
+        }),
       });
 
       if (!response.ok) throw new Error('Ошибка проверки');
@@ -896,7 +924,7 @@ export default function HomePage() {
             {/* Правая часть шапки с фиксированной структурой */}
             <div className="flex items-center">
               {/* Навигационные вкладки с фиксированной шириной */}
-              <div className="flex items-center space-x-1 w-[280px] justify-center">
+              <div className="flex items-center space-x-1 w-[350px] justify-center">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -932,10 +960,22 @@ export default function HomePage() {
                     История
                   </Link>
                 </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+                >
+                  <Link href="/dictionary">
+                    <Book className="h-4 w-4 mr-2" />
+                    Словарь
+                  </Link>
+                </Button>
               </div>
 
               {/* Блок авторизации и темы */}
-              <div className="flex items-center ml-8">
+              <div className="flex items-center ml-12">
                 {memoizedUser ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

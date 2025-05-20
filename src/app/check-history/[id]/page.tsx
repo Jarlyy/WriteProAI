@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase-client";
 import { Button } from "../../../components/ui/button";
-import { Moon, Sun, FileText, Home, ArrowLeft, Copy, Check, Clock, User, LogOut } from "lucide-react";
+import { Moon, Sun, FileText, Home, ArrowLeft, Copy, Check, Clock, User, LogOut, Book } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { CheckHistoryItem, ReadabilityMetrics } from "../../../components/firestore/check-history";
@@ -215,7 +215,7 @@ export default function CheckHistoryDetailPage() {
             {/* Правая часть шапки с фиксированной структурой */}
             <div className="flex items-center">
               {/* Навигационные вкладки с фиксированной шириной */}
-              <div className="flex items-center space-x-1 w-[280px] justify-center">
+              <div className="flex items-center space-x-1 w-[350px] justify-center">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -251,10 +251,22 @@ export default function CheckHistoryDetailPage() {
                     История
                   </Link>
                 </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+                >
+                  <Link href="/dictionary">
+                    <Book className="h-4 w-4 mr-2" />
+                    Словарь
+                  </Link>
+                </Button>
               </div>
 
               {/* Блок авторизации и темы */}
-              <div className="flex items-center ml-8">
+              <div className="flex items-center ml-12">
                 {user ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

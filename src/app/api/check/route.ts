@@ -1,4 +1,17 @@
 import { NextResponse } from 'next/server';
+// Используем клиентскую библиотеку Firebase как запасной вариант
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { db } from "../../../lib/firebase-client";
+
+// Пытаемся импортировать adminDb, но если не получится, будем использовать клиентскую библиотеку
+let adminDb: any;
+try {
+  const admin = require("../../../lib/firebase-admin");
+  adminDb = admin.adminDb;
+} catch (error) {
+  console.error("Не удалось загрузить Firebase Admin, используем клиентскую библиотеку", error);
+  adminDb = null;
+}
 
 // Интерфейсы для Yandex Speller API
 interface YandexSpellerError {
@@ -27,9 +40,57 @@ interface LanguageToolMatch {
   };
 }
 
+// Интерфейс для элемента словаря
+interface DictionaryItem {
+  id?: string;
+  userId: string;
+  word: string;
+  createdAt: Date;
+}
+
 export async function POST(request: Request) {
   try {
-    const { text } = await request.json();
+    const { text, userId } = await request.json();
+
+    // Получаем словарь исключений пользователя, если передан userId
+    let userDictionary: string[] = [];
+
+    if (userId) {
+      try {
+        let dictionaryDocs;
+
+        // Используем Firebase Admin, если доступен
+        if (adminDb) {
+          const dictionarySnapshot = await adminDb
+            .collection("dictionary")
+            .where("userId", "==", userId)
+            .get();
+
+          dictionaryDocs = dictionarySnapshot.docs;
+        }
+        // Иначе используем клиентскую библиотеку Firebase
+        else {
+          const dictionaryQuery = query(
+            collection(db, "dictionary"),
+            where("userId", "==", userId)
+          );
+
+          const querySnapshot = await getDocs(dictionaryQuery);
+          dictionaryDocs = querySnapshot.docs;
+        }
+
+        // Извлекаем слова из документов
+        userDictionary = dictionaryDocs.map(doc => {
+          const data = doc.data();
+          return data.word.toLowerCase();
+        });
+
+        console.log("Загружен словарь пользователя:", userDictionary);
+      } catch (error) {
+        console.error("Ошибка при загрузке словаря пользователя:", error);
+        // Продолжаем работу с пустым словарем
+      }
+    }
 
     // Вызов Yandex Speller API
     const response = await fetch('https://speller.yandex.net/services/spellservice.json/checkText', {
@@ -56,8 +117,18 @@ export async function POST(request: Request) {
     const readabilityMetrics = calculateDetailedReadabilityMetrics(text);
     const readabilityScore = readabilityMetrics.score;
 
+    // Фильтруем ошибки, исключая слова из словаря пользователя
+    const filteredSpellerErrors = spellerErrors.filter(error => {
+      // Если слово есть в словаре пользователя, исключаем его из ошибок
+      if (userDictionary.includes(error.word.toLowerCase())) {
+        console.log(`Слово "${error.word}" найдено в словаре пользователя и исключено из ошибок`);
+        return false;
+      }
+      return true;
+    });
+
     // Преобразуем ошибки Yandex Speller в формат, совместимый с LanguageTool
-    const matches: LanguageToolMatch[] = spellerErrors.map(error => {
+    const matches: LanguageToolMatch[] = filteredSpellerErrors.map(error => {
       // Формируем сообщение об ошибке в зависимости от кода ошибки
       let message = '';
       let ruleId = '';

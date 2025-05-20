@@ -6,7 +6,7 @@ import { signOut } from "firebase/auth";
 import { db, auth } from "../../lib/firebase-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2, Moon, Sun, FileText, Home, LogOut, Clock, User } from "lucide-react";
+import { Trash2, Moon, Sun, FileText, Home, LogOut, Clock, User, Book } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -351,7 +351,7 @@ export default function SavedTextsPage() {
             {/* Правая часть шапки с фиксированной структурой */}
             <div className="flex items-center">
               {/* Навигационные вкладки с фиксированной шириной */}
-              <div className="flex items-center space-x-1 w-[280px] justify-center">
+              <div className="flex items-center space-x-1 w-[350px] justify-center">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -387,10 +387,22 @@ export default function SavedTextsPage() {
                     История
                   </Link>
                 </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  asChild
+                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+                >
+                  <Link href="/dictionary">
+                    <Book className="h-4 w-4 mr-2" />
+                    Словарь
+                  </Link>
+                </Button>
               </div>
 
               {/* Блок авторизации и темы */}
-              <div className="flex items-center ml-8">
+              <div className="flex items-center ml-12">
                 {memoizedUser ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
