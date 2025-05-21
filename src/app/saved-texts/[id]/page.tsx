@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase-client";
@@ -53,6 +53,9 @@ export default function SavedTextDetailPage() {
 
   // Используем контекст авторизации
   const { user, loading: authLoading } = useAuth();
+
+  // Мемоизируем пользователя для предотвращения мерцания
+  const memoizedUser = React.useMemo(() => user, [user]);
 
   const params = useParams();
   const router = useRouter();
@@ -232,14 +235,12 @@ export default function SavedTextDetailPage() {
       {/* Шапка страницы */}
       <header className="bg-blue-600 dark:bg-blue-800 text-white py-4 shadow-md">
         <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center">
+          <div className="flex items-center w-full">
             {/* Логотип */}
-            <h1 className="text-3xl font-bold">WriteProAI</h1>
+            <h1 className="text-3xl font-bold mr-6">WriteProAI</h1>
 
-            {/* Правая часть шапки с фиксированной структурой */}
-            <div className="flex items-center">
-              {/* Навигационные вкладки с фиксированной шириной */}
-              <div className="flex items-center space-x-1 w-[350px] justify-center">
+            {/* Навигационные вкладки рядом с логотипом */}
+            <div className="flex items-center space-x-1">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -289,24 +290,24 @@ export default function SavedTextDetailPage() {
                 </Button>
               </div>
 
-              {/* Блок авторизации и темы */}
-              <div className="flex items-center ml-12">
-                {user ? (
+              {/* Правая часть шапки */}
+              <div className="flex items-center ml-auto">
+                {memoizedUser ? (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <button className="focus:outline-none">
-                        {user.photoURL ? (
+                        {memoizedUser.photoURL ? (
                           <img
-                            src={user.photoURL}
+                            src={memoizedUser.photoURL}
                             alt="User avatar"
                             className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-gray-800 cursor-pointer hover:opacity-90 transition-opacity"
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-blue-400 dark:bg-blue-500 flex items-center justify-center text-white font-semibold text-sm uppercase cursor-pointer hover:opacity-90 transition-opacity">
-                            {user.displayName && !user.providerData?.[0]?.providerId?.includes('google')
-                              ? user.displayName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()
-                              : user.email
-                                ? user.email.substring(0, 2).toUpperCase()
+                            {memoizedUser.displayName && !memoizedUser.providerData?.[0]?.providerId?.includes('google')
+                              ? memoizedUser.displayName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()
+                              : memoizedUser.email
+                                ? memoizedUser.email.substring(0, 2).toUpperCase()
                                 : "??"}
                           </div>
                         )}
@@ -315,16 +316,23 @@ export default function SavedTextDetailPage() {
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
                       <DropdownMenuSeparator />
-                      {user.displayName && (
+                      {memoizedUser.displayName && (
                         <DropdownMenuLabel className="font-normal text-sm truncate">
-                          {user.displayName}
+                          {memoizedUser.displayName}
                         </DropdownMenuLabel>
                       )}
-                      {user.email && (
+                      {memoizedUser.email && (
                         <DropdownMenuLabel className="font-normal text-xs truncate text-gray-500 dark:text-gray-400">
-                          {user.email}
+                          {memoizedUser.email}
                         </DropdownMenuLabel>
                       )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/account" className="flex items-center cursor-pointer">
+                          <User className="h-4 w-4 mr-2" />
+                          Настройки аккаунта
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onClick={handleSignOutClick} className="text-red-500 dark:text-red-400 cursor-pointer">
                         <LogOut className="h-4 w-4 mr-2" />
@@ -360,7 +368,6 @@ export default function SavedTextDetailPage() {
                   )}
                 </Button>
               </div>
-            </div>
           </div>
         </div>
       </header>
@@ -395,24 +402,6 @@ export default function SavedTextDetailPage() {
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                       {savedText.createdAt.toLocaleDateString()} {savedText.createdAt.toLocaleTimeString()}
                     </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Button
-                      onClick={() => copyToClipboard(savedText.correctedText || savedText.originalText)}
-                      className={`p-2 rounded-full transition-all duration-300 ${
-                        isCopied
-                          ? "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
-                          : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
-                      }`}
-                      title={isCopied ? "Скопировано!" : "Копировать текст"}
-                      aria-label={isCopied ? "Скопировано!" : "Копировать текст"}
-                    >
-                      {isCopied ? (
-                        <Check className="h-4 w-4 text-white" />
-                      ) : (
-                        <Copy className="h-4 w-4 text-white" />
-                      )}
-                    </Button>
                   </div>
                 </div>
 
@@ -503,7 +492,25 @@ export default function SavedTextDetailPage() {
                 {/* Исправленный текст */}
                 {savedText.correctedText && (
                   <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
-                    <h3 className="font-semibold mb-2 text-black dark:text-white">Исправленный текст:</h3>
+                    <div className="flex justify-between items-center mb-2">
+                      <h3 className="font-semibold text-black dark:text-white">Исправленный текст:</h3>
+                      <Button
+                        onClick={() => copyToClipboard(savedText.correctedText)}
+                        className={`p-2 rounded-full transition-all duration-300 ${
+                          isCopied
+                            ? "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+                            : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
+                        }`}
+                        title={isCopied ? "Скопировано!" : "Копировать исправленный текст"}
+                        aria-label={isCopied ? "Скопировано!" : "Копировать исправленный текст"}
+                      >
+                        {isCopied ? (
+                          <Check className="h-4 w-4 text-white" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-white" />
+                        )}
+                      </Button>
+                    </div>
                     <div
                       className="whitespace-pre-wrap text-black dark:text-white p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 max-h-[300px] overflow-auto"
                       style={{
