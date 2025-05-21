@@ -298,62 +298,63 @@ export default function AccountPage() {
       {/* Шапка страницы */}
       <header className="bg-blue-600 dark:bg-blue-800 text-white py-4 shadow-md">
         <div className="container mx-auto px-4">
-          <div className="flex justify-between items-center">
+          <div className="flex items-center">
             {/* Логотип */}
-            <h1 className="text-3xl font-bold">WriteProAI</h1>
+            <h1 className="text-3xl font-bold mr-6">WriteProAI</h1>
 
-            {/* Правая часть шапки с фиксированной структурой */}
-            <div className="flex items-center">
-              {/* Навигационные вкладки с фиксированной шириной */}
-              <div className="flex items-center space-x-1 w-[350px] justify-center">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
-                >
-                  <Link href="/">
-                    <Home className="h-4 w-4 mr-2" />
-                    Главная
-                  </Link>
-                </Button>
+            {/* Навигационные вкладки рядом с логотипом */}
+            <div className="flex items-center space-x-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+              >
+                <Link href="/">
+                  <Home className="h-4 w-4 mr-2" />
+                  Главная
+                </Link>
+              </Button>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
-                >
-                  <Link href="/saved-texts">
-                    <FileText className="h-4 w-4 mr-2" />
-                    Избранное
-                  </Link>
-                </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+              >
+                <Link href="/saved-texts">
+                  <FileText className="h-4 w-4 mr-2" />
+                  Избранное
+                </Link>
+              </Button>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
-                >
-                  <Link href="/check-history">
-                    <Clock className="h-4 w-4 mr-2" />
-                    История
-                  </Link>
-                </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+              >
+                <Link href="/check-history">
+                  <Clock className="h-4 w-4 mr-2" />
+                  История
+                </Link>
+              </Button>
 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  asChild
-                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
-                >
-                  <Link href="/dictionary">
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    Словарь
-                  </Link>
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+              >
+                <Link href="/dictionary">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  Словарь
+                </Link>
+              </Button>
+            </div>
+
+            {/* Правая часть шапки */}
+            <div className="flex items-center ml-auto">
 
               {/* Блок авторизации и темы */}
               <div className="flex items-center ml-12">
