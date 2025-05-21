@@ -50,12 +50,18 @@ interface DictionaryItem {
 
 export async function POST(request: Request) {
   try {
-    const { text, userId } = await request.json();
+    const { text, userId, clientDictionary } = await request.json();
 
-    // Получаем словарь исключений пользователя, если передан userId
+    // Получаем словарь исключений пользователя
     let userDictionary: string[] = [];
 
-    if (userId) {
+    // Если передан словарь с клиента, используем его
+    if (clientDictionary && Array.isArray(clientDictionary) && clientDictionary.length > 0) {
+      userDictionary = clientDictionary.map(word => word.toLowerCase());
+      console.log('Используем словарь, переданный с клиента:', userDictionary);
+    }
+    // Иначе пытаемся загрузить из Firestore, если передан userId
+    else if (userId) {
       try {
         let dictionaryDocs;
 
@@ -85,11 +91,23 @@ export async function POST(request: Request) {
           return data.word.toLowerCase();
         });
 
-        console.log("Загружен словарь пользователя:", userDictionary);
+        // Выводим подробную информацию для отладки
+        console.log(`Загружен словарь пользователя (${userDictionary.length} слов):`, userDictionary);
+
+        // Если словарь пустой, выводим предупреждение
+        if (userDictionary.length === 0) {
+          console.warn('Словарь пользователя пуст!');
+        } else {
+          console.log('Первые 5 слов в словаре:', userDictionary.slice(0, 5));
+        }
       } catch (error) {
         console.error("Ошибка при загрузке словаря пользователя:", error);
         // Продолжаем работу с пустым словарем
       }
+    }
+    // Если нет ни словаря с клиента, ни userId
+    else {
+      console.warn('Не передан ни словарь с клиента, ни userId. Словарь пользователя не будет использоваться.');
     }
 
     // Вызов Yandex Speller API
@@ -117,13 +135,88 @@ export async function POST(request: Request) {
     const readabilityMetrics = calculateDetailedReadabilityMetrics(text);
     const readabilityScore = readabilityMetrics.score;
 
+    // Функция для вычисления расстояния Левенштейна между двумя строками
+    const levenshteinDistance = (a, b) => {
+      if (a.length === 0) return b.length;
+      if (b.length === 0) return a.length;
+
+      const matrix = [];
+
+      // Инициализация матрицы
+      for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+      }
+
+      for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+      }
+
+      // Заполнение матрицы
+      for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+          if (b.charAt(i - 1) === a.charAt(j - 1)) {
+            matrix[i][j] = matrix[i - 1][j - 1];
+          } else {
+            matrix[i][j] = Math.min(
+              matrix[i - 1][j - 1] + 1, // замена
+              matrix[i][j - 1] + 1,     // вставка
+              matrix[i - 1][j] + 1      // удаление
+            );
+          }
+        }
+      }
+
+      return matrix[b.length][a.length];
+    };
+
+    // Выводим информацию о найденных ошибках
+    console.log(`Найдено ${spellerErrors.length} ошибок от Yandex Speller:`,
+      spellerErrors.map(e => ({ word: e.word, pos: e.pos, len: e.len, suggestions: e.s })));
+
     // Фильтруем ошибки, исключая слова из словаря пользователя
     const filteredSpellerErrors = spellerErrors.filter(error => {
-      // Если слово есть в словаре пользователя, исключаем его из ошибок
-      if (userDictionary.includes(error.word.toLowerCase())) {
-        console.log(`Слово "${error.word}" найдено в словаре пользователя и исключено из ошибок`);
+      const errorWordLower = error.word.toLowerCase();
+
+      // Выводим информацию о проверяемой ошибке
+      console.log(`Проверка ошибки: "${error.word}" (позиция: ${error.pos}, длина: ${error.len})`);
+
+      // Проверяем, есть ли словарь и не пустой ли он
+      if (!userDictionary || userDictionary.length === 0) {
+        console.warn('Словарь пуст или не загружен, пропускаем проверку');
+        return true;
+      }
+
+      // Проверяем точное совпадение
+      if (userDictionary.includes(errorWordLower)) {
+        console.log(`ИСКЛЮЧЕНО: Слово "${error.word}" найдено в словаре пользователя (точное совпадение)`);
         return false;
       }
+
+      // Проверяем, есть ли слово в списке предложений
+      if (error.s && error.s.length > 0) {
+        console.log(`Предложения для исправления "${error.word}":`, error.s);
+
+        for (const suggestion of error.s) {
+          const suggestionLower = suggestion.toLowerCase();
+
+          if (userDictionary.includes(suggestionLower)) {
+            console.log(`ИСКЛЮЧЕНО: Слово "${suggestion}" найдено в словаре пользователя (совпадение с предложением)`);
+            return false;
+          }
+        }
+      }
+
+      // Проверяем похожие слова (с расстоянием Левенштейна <= 2)
+      for (const dictWord of userDictionary) {
+        const distance = levenshteinDistance(errorWordLower, dictWord);
+
+        if (distance <= 2) {
+          console.log(`ИСКЛЮЧЕНО: Слово "${error.word}" похоже на слово "${dictWord}" из словаря пользователя (расстояние: ${distance})`);
+          return false;
+        }
+      }
+
+      console.log(`Слово "${error.word}" НЕ найдено в словаре пользователя, будет исправлено`);
       return true;
     });
 

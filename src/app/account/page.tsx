@@ -33,7 +33,7 @@ import {
   Home,
   FileText,
   Clock,
-  Book
+  BookOpen
 } from "lucide-react";
 
 export default function AccountPage() {
@@ -349,7 +349,7 @@ export default function AccountPage() {
                   className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
                 >
                   <Link href="/dictionary">
-                    <Book className="h-4 w-4 mr-2" />
+                    <BookOpen className="h-4 w-4 mr-2" />
                     Словарь
                   </Link>
                 </Button>

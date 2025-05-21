@@ -38,8 +38,8 @@ export const generateTitle = (text: string): string => {
 // Функция для проверки сетевого соединения
 export const checkNetworkConnection = async (): Promise<boolean> => {
   try {
-    // Проверяем доступность Firebase
-    const response = await fetch('https://firestore.googleapis.com/v1/projects/writeproai-deb22/databases/(default)/documents', {
+    // Проверяем доступность интернета, используя надежный общедоступный URL
+    const response = await fetch('https://www.google.com/generate_204', {
       method: 'HEAD',
       mode: 'no-cors', // Используем no-cors для обхода CORS-ограничений
       cache: 'no-cache'

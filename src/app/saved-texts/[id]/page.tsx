@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db, auth } from "../../../lib/firebase-client";
 import { Button } from "../../../components/ui/button";
-import { Moon, Sun, FileText, Home, ArrowLeft, Copy, Check, Clock, User, LogOut, Book } from "lucide-react";
+import { Moon, Sun, FileText, Home, ArrowLeft, Copy, Check, Clock, User, LogOut, BookOpen } from "lucide-react";
 import { signOut } from "firebase/auth";
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog";
 import { useAuth } from "../../../contexts/auth-context";
@@ -283,7 +283,7 @@ export default function SavedTextDetailPage() {
                   className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
                 >
                   <Link href="/dictionary">
-                    <Book className="h-4 w-4 mr-2" />
+                    <BookOpen className="h-4 w-4 mr-2" />
                     Словарь
                   </Link>
                 </Button>

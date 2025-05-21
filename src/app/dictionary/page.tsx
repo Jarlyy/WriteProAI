@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "../../components/ui/button";
-import { Home, FileText, Clock, Book, Plus, Trash2, X } from "lucide-react";
+import { Home, FileText, Clock, BookOpen, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useAuth } from "../../contexts/auth-context";
@@ -71,7 +71,14 @@ export default function DictionaryPage() {
         // Сохраняем словарь в localStorage для использования в других компонентах
         const words = dictionaryItems.map(item => item.word.toLowerCase());
         localStorage.setItem('userDictionary', JSON.stringify(words));
-        console.log('Словарь пользователя сохранен в localStorage:', words);
+
+        // Также сохраняем в sessionStorage для отладки
+        sessionStorage.setItem('userDictionary', JSON.stringify(words));
+
+        // Выводим подробную информацию для отладки
+        console.log('Словарь пользователя сохранен в localStorage и sessionStorage:', words);
+        console.log('Количество слов в словаре:', words.length);
+        console.log('Содержимое localStorage после сохранения:', localStorage.getItem('userDictionary'));
       } catch (error) {
         console.error("Ошибка при загрузке словаря:", error);
         setError("Не удалось загрузить словарь");
@@ -125,10 +132,25 @@ export default function DictionaryPage() {
 
       setDictionary(updatedDictionary);
 
-      // Обновляем localStorage
+      // Обновляем localStorage и sessionStorage
       const words = updatedDictionary.map(item => item.word.toLowerCase());
+
+      // Сначала проверим текущее состояние localStorage
+      const currentDict = localStorage.getItem('userDictionary');
+      console.log('Текущее состояние словаря в localStorage перед обновлением:', currentDict);
+
+      // Обновляем localStorage
       localStorage.setItem('userDictionary', JSON.stringify(words));
-      console.log('Словарь пользователя обновлен в localStorage после добавления:', words);
+
+      // Проверяем, что словарь действительно обновился
+      const updatedDict = localStorage.getItem('userDictionary');
+      console.log('Словарь в localStorage после обновления:', updatedDict);
+
+      // Также обновляем sessionStorage для надежности
+      sessionStorage.setItem('userDictionary', JSON.stringify(words));
+
+      console.log('Словарь пользователя обновлен в localStorage и sessionStorage после добавления:', words);
+      console.log('Количество слов в словаре после добавления:', words.length);
 
       setNewWord("");
       setSuccess("Слово успешно добавлено в словарь");
@@ -162,10 +184,25 @@ export default function DictionaryPage() {
       const updatedDictionary = dictionary.filter(item => item.id !== id);
       setDictionary(updatedDictionary);
 
-      // Обновляем localStorage
+      // Обновляем localStorage и sessionStorage
       const words = updatedDictionary.map(item => item.word.toLowerCase());
+
+      // Сначала проверим текущее состояние localStorage
+      const currentDict = localStorage.getItem('userDictionary');
+      console.log('Текущее состояние словаря в localStorage перед удалением:', currentDict);
+
+      // Обновляем localStorage
       localStorage.setItem('userDictionary', JSON.stringify(words));
-      console.log('Словарь пользователя обновлен в localStorage после удаления:', words);
+
+      // Проверяем, что словарь действительно обновился
+      const updatedDict = localStorage.getItem('userDictionary');
+      console.log('Словарь в localStorage после удаления:', updatedDict);
+
+      // Также обновляем sessionStorage для надежности
+      sessionStorage.setItem('userDictionary', JSON.stringify(words));
+
+      console.log('Словарь пользователя обновлен в localStorage и sessionStorage после удаления:', words);
+      console.log('Количество слов в словаре после удаления:', words.length);
 
       setSuccess("Слово успешно удалено из словаря");
 
@@ -211,9 +248,21 @@ export default function DictionaryPage() {
       // Очищаем словарь в состоянии
       setDictionary([]);
 
+      // Сначала проверим текущее состояние localStorage
+      const currentDict = localStorage.getItem('userDictionary');
+      console.log('Текущее состояние словаря в localStorage перед очисткой:', currentDict);
+
       // Очищаем localStorage
       localStorage.setItem('userDictionary', JSON.stringify([]));
-      console.log('Словарь пользователя очищен в localStorage');
+
+      // Проверяем, что словарь действительно очистился
+      const updatedDict = localStorage.getItem('userDictionary');
+      console.log('Словарь в localStorage после очистки:', updatedDict);
+
+      // Также очищаем sessionStorage для надежности
+      sessionStorage.setItem('userDictionary', JSON.stringify([]));
+
+      console.log('Словарь пользователя очищен в localStorage и sessionStorage');
 
       setSuccess("Словарь успешно очищен");
 
@@ -297,7 +346,7 @@ export default function DictionaryPage() {
                   className="text-white bg-white/20 hover:bg-white/30 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
                 >
                   <Link href="/dictionary">
-                    <Book className="h-4 w-4 mr-2" />
+                    <BookOpen className="h-4 w-4 mr-2" />
                     Словарь
                   </Link>
                 </Button>

@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { CheckHistoryList } from "../../components/firestore/check-history";
 import { Button } from "../../components/ui/button";
-import { Moon, Sun, FileText, Home, Clock, LogOut, User, Book } from "lucide-react";
+import { Moon, Sun, FileText, Home, Clock, LogOut, User, BookOpen } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -153,7 +153,7 @@ export default function CheckHistoryPage() {
                   className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
                 >
                   <Link href="/dictionary">
-                    <Book className="h-4 w-4 mr-2" />
+                    <BookOpen className="h-4 w-4 mr-2" />
                     Словарь
                   </Link>
                 </Button>

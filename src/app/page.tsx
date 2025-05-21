@@ -3,10 +3,11 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Textarea } from "../components/ui/textarea";
 import { Button } from "../components/ui/button";
-import { Moon, Sun, Copy, Check, LogOut, X, Trash2, FileText, Clock, Home, User, Book } from "lucide-react";
+import { Moon, Sun, Copy, Check, LogOut, X, Trash2, FileText, Clock, Home, User, BookOpen } from "lucide-react";
 import { SaveText } from "../components/firestore/save-text";
 import { signOut, onAuthStateChanged } from "firebase/auth";
-import { auth } from "../lib/firebase-client";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { auth, db } from "../lib/firebase-client";
 import { ConfirmDialog } from "../components/ui/confirm-dialog";
 import { autoSaveCheckHistory } from "../lib/auto-save-history";
 import { useAuth } from "../contexts/auth-context";
@@ -111,6 +112,57 @@ export default function HomePage() {
       document.documentElement.classList.remove("dark");
     }
   }, []);
+
+  // Проверяем словарь пользователя при загрузке компонента
+  useEffect(() => {
+    // Проверяем, загружен ли словарь пользователя
+    try {
+      const storedDictionary = localStorage.getItem('userDictionary');
+      if (storedDictionary) {
+        const dictionary = JSON.parse(storedDictionary);
+        console.log('Словарь пользователя загружен при инициализации страницы:', dictionary);
+        console.log('Количество слов в словаре:', dictionary.length);
+      } else {
+        console.warn('Словарь пользователя не найден в localStorage при инициализации страницы!');
+
+        // Если словарь не найден в localStorage, но пользователь авторизован,
+        // загружаем словарь из Firestore и сохраняем в localStorage
+        if (memoizedUser) {
+          console.log('Пользователь авторизован, но словарь не найден в localStorage. Загружаем словарь из Firestore.');
+
+          // Загружаем словарь из Firestore
+          const loadDictionaryFromFirestore = async () => {
+            try {
+              const dictionaryQuery = query(
+                collection(db, "dictionary"),
+                where("userId", "==", memoizedUser.uid)
+              );
+
+              const querySnapshot = await getDocs(dictionaryQuery);
+              const dictionaryItems = querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                return data.word.toLowerCase();
+              });
+
+              console.log(`Загружен словарь пользователя из Firestore (${dictionaryItems.length} слов):`, dictionaryItems);
+
+              // Сохраняем словарь в localStorage и sessionStorage
+              localStorage.setItem('userDictionary', JSON.stringify(dictionaryItems));
+              sessionStorage.setItem('userDictionary', JSON.stringify(dictionaryItems));
+
+              console.log('Словарь пользователя сохранен в localStorage и sessionStorage');
+            } catch (error) {
+              console.error('Ошибка при загрузке словаря из Firestore:', error);
+            }
+          };
+
+          loadDictionaryFromFirestore();
+        }
+      }
+    } catch (error) {
+      console.error('Ошибка при загрузке словаря пользователя из localStorage:', error);
+    }
+  }, [memoizedUser]);
 
   // Состояние аутентификации отслеживается через контекст AuthProvider
 
@@ -286,20 +338,73 @@ export default function HomePage() {
     return suggestionsWithWeights[0].suggestion;
   }, []);
 
+  // Функция для вычисления расстояния Левенштейна между двумя строками
+  const levenshteinDistance = (a, b) => {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+
+    const matrix = [];
+
+    // Инициализация матрицы
+    for (let i = 0; i <= b.length; i++) {
+      matrix[i] = [i];
+    }
+
+    for (let j = 0; j <= a.length; j++) {
+      matrix[0][j] = j;
+    }
+
+    // Заполнение матрицы
+    for (let i = 1; i <= b.length; i++) {
+      for (let j = 1; j <= a.length; j++) {
+        if (b.charAt(i - 1) === a.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1, // замена
+            matrix[i][j - 1] + 1,     // вставка
+            matrix[i - 1][j] + 1      // удаление
+          );
+        }
+      }
+    }
+
+    return matrix[b.length][a.length];
+  };
+
   // Функция для автоматического исправления ошибок
   const generateCorrectedText = useCallback((text, errors) => {
     if (!text || errors.length === 0) return text;
 
-    // Получаем словарь пользователя из localStorage, если он есть
+    // Получаем словарь пользователя из localStorage и sessionStorage, если он есть
     let userDictionary: string[] = [];
     try {
+      // Пробуем загрузить из localStorage
       const storedDictionary = localStorage.getItem('userDictionary');
+
+      // Если в localStorage нет, пробуем из sessionStorage
+      const sessionDictionary = sessionStorage.getItem('userDictionary');
+
+      // Выводим подробную информацию для отладки
+      console.log('Содержимое localStorage:', storedDictionary);
+      console.log('Содержимое sessionStorage:', sessionDictionary);
+
       if (storedDictionary) {
         userDictionary = JSON.parse(storedDictionary);
         console.log('Загружен словарь пользователя из localStorage:', userDictionary);
+        console.log('Количество слов в словаре из localStorage:', userDictionary.length);
+      } else if (sessionDictionary) {
+        userDictionary = JSON.parse(sessionDictionary);
+        console.log('Загружен словарь пользователя из sessionStorage:', userDictionary);
+        console.log('Количество слов в словаре из sessionStorage:', userDictionary.length);
+      }
+
+      // Если словарь пустой, выводим предупреждение
+      if (userDictionary.length === 0) {
+        console.warn('Словарь пользователя пуст!');
       }
     } catch (error) {
-      console.error('Ошибка при загрузке словаря пользователя из localStorage:', error);
+      console.error('Ошибка при загрузке словаря пользователя:', error);
     }
 
     // Сортируем ошибки по позиции в обратном порядке,
@@ -307,11 +412,59 @@ export default function HomePage() {
     const sortedErrors = [...errors]
       // Фильтруем ошибки, исключая слова из словаря пользователя
       .filter(error => {
+        // Выводим информацию о проверяемой ошибке
+        console.log('Проверка ошибки для исключения из словаря:', {
+          message: error.message,
+          offset: error.offset,
+          length: error.length,
+          suggestions: error.suggestions
+        });
+
         const errorText = text.slice(error.offset, error.offset + error.length);
-        if (userDictionary.includes(errorText.toLowerCase())) {
-          console.log(`Слово "${errorText}" найдено в словаре пользователя и исключено из исправлений`);
+        const errorTextLower = errorText.toLowerCase();
+
+        console.log(`Текст ошибки: "${errorText}", нижний регистр: "${errorTextLower}"`);
+
+        // Проверяем, есть ли словарь и не пустой ли он
+        if (!userDictionary || userDictionary.length === 0) {
+          console.warn('Словарь пуст или не загружен, пропускаем проверку');
+          return true;
+        }
+
+        // Выводим словарь для отладки
+        console.log('Текущий словарь:', userDictionary);
+
+        // Проверяем точное совпадение
+        if (userDictionary.includes(errorTextLower)) {
+          console.log(`ИСКЛЮЧЕНО: Слово "${errorText}" найдено в словаре пользователя (точное совпадение)`);
           return false;
         }
+
+        // Проверяем, есть ли слово в списке предложений
+        if (error.suggestions && error.suggestions.length > 0) {
+          for (const suggestion of error.suggestions) {
+            const suggestionLower = suggestion.toLowerCase();
+            console.log(`Проверка предложения: "${suggestion}", нижний регистр: "${suggestionLower}"`);
+
+            if (userDictionary.includes(suggestionLower)) {
+              console.log(`ИСКЛЮЧЕНО: Слово "${suggestion}" найдено в словаре пользователя (совпадение с предложением)`);
+              return false;
+            }
+          }
+        }
+
+        // Проверяем похожие слова (с расстоянием Левенштейна <= 2)
+        for (const dictWord of userDictionary) {
+          const distance = levenshteinDistance(errorTextLower, dictWord);
+          console.log(`Расстояние Левенштейна между "${errorTextLower}" и "${dictWord}": ${distance}`);
+
+          if (distance <= 2) {
+            console.log(`ИСКЛЮЧЕНО: Слово "${errorText}" похоже на слово "${dictWord}" из словаря пользователя (расстояние: ${distance})`);
+            return false;
+          }
+        }
+
+        console.log(`Слово "${errorText}" НЕ найдено в словаре пользователя, будет исправлено`);
         return true;
       })
       .sort((a, b) => b.offset - a.offset);
@@ -460,7 +613,7 @@ export default function HomePage() {
     });
 
     return corrected;
-  }, [getBestSuggestion]);
+  }, [getBestSuggestion, levenshteinDistance]);
 
   const highlightedText = useMemo(() => {
     if (!checkedText || errors.length === 0) return checkedText;
@@ -596,6 +749,30 @@ export default function HomePage() {
       // Передаем ID пользователя в API-запрос, если пользователь авторизован
       const userId = memoizedUser ? memoizedUser.uid : null;
 
+      // Получаем словарь пользователя из localStorage для отладки
+      let userDictionary = [];
+      try {
+        const storedDictionary = localStorage.getItem('userDictionary');
+        if (storedDictionary) {
+          userDictionary = JSON.parse(storedDictionary);
+          console.log('Словарь пользователя из localStorage перед отправкой запроса:', userDictionary);
+        } else {
+          console.warn('Словарь пользователя не найден в localStorage!');
+        }
+      } catch (error) {
+        console.error('Ошибка при загрузке словаря пользователя из localStorage:', error);
+      }
+
+      // Также проверяем sessionStorage
+      try {
+        const sessionDictionary = sessionStorage.getItem('userDictionary');
+        if (sessionDictionary) {
+          console.log('Словарь пользователя из sessionStorage перед отправкой запроса:', JSON.parse(sessionDictionary));
+        }
+      } catch (error) {
+        console.error('Ошибка при загрузке словаря пользователя из sessionStorage:', error);
+      }
+
       const response = await fetch('/api/check', {
         method: 'POST',
         headers: {
@@ -603,7 +780,9 @@ export default function HomePage() {
         },
         body: JSON.stringify({
           text,
-          userId
+          userId,
+          // Передаем словарь напрямую для отладки
+          clientDictionary: userDictionary
         }),
       });
 
@@ -968,7 +1147,7 @@ export default function HomePage() {
                   className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
                 >
                   <Link href="/dictionary">
-                    <Book className="h-4 w-4 mr-2" />
+                    <BookOpen className="h-4 w-4 mr-2" />
                     Словарь
                   </Link>
                 </Button>

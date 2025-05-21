@@ -6,7 +6,7 @@ import { signOut } from "firebase/auth";
 import { db, auth } from "../../lib/firebase-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Trash2, Moon, Sun, FileText, Home, LogOut, Clock, User, Book } from "lucide-react";
+import { Trash2, Moon, Sun, FileText, Home, LogOut, Clock, User, BookOpen } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -395,7 +395,7 @@ export default function SavedTextsPage() {
                   className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
                 >
                   <Link href="/dictionary">
-                    <Book className="h-4 w-4 mr-2" />
+                    <BookOpen className="h-4 w-4 mr-2" />
                     Словарь
                   </Link>
                 </Button>
