@@ -2,13 +2,22 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { Button } from "../../components/ui/button";
-import { Home, FileText, Clock, BookOpen, Plus, Trash2, X } from "lucide-react";
+import { Home, FileText, Clock, BookOpen, Plus, Trash2, X, Moon, Sun, User, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useAuth } from "../../contexts/auth-context";
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc } from "firebase/firestore";
 import { db, auth } from "../../lib/firebase-client";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
+import { signOut } from "firebase/auth";
 
 // Интерфейс для элемента словаря
 interface DictionaryItem {
@@ -19,7 +28,7 @@ interface DictionaryItem {
 }
 
 export default function DictionaryPage() {
-  const { theme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const isDarkMode = theme === "dark";
   const { user: memoizedUser } = useAuth();
 
@@ -31,6 +40,44 @@ export default function DictionaryPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isClearDictionaryDialogOpen, setIsClearDictionaryDialogOpen] = useState(false);
+  const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
+
+  // Функция для переключения темы
+  const toggleTheme = () => {
+    if (isDarkMode) {
+      // Переключаемся на светлую тему
+      document.documentElement.classList.remove("dark");
+      setTheme("light");
+    } else {
+      // Переключаемся на темную тему
+      document.documentElement.classList.add("dark");
+      setTheme("dark");
+    }
+  };
+
+  // Функция для открытия диалога подтверждения выхода
+  const handleSignOutClick = () => {
+    setIsSignOutDialogOpen(true);
+  };
+
+  // Функция для подтверждения выхода из аккаунта
+  const confirmSignOut = async () => {
+    try {
+      if (auth) {
+        await signOut(auth);
+        console.log("Пользователь вышел из системы");
+      }
+    } catch (error) {
+      console.error("Ошибка при выходе из аккаунта:", error);
+    } finally {
+      setIsSignOutDialogOpen(false);
+    }
+  };
+
+  // Функция для отмены выхода из аккаунта
+  const cancelSignOut = () => {
+    setIsSignOutDialogOpen(false);
+  };
 
   // Загрузка словаря пользователя
   useEffect(() => {
@@ -292,6 +339,17 @@ export default function DictionaryPage() {
         onCancel={() => setIsClearDictionaryDialogOpen(false)}
       />
 
+      {/* Диалог подтверждения выхода */}
+      <ConfirmDialog
+        isOpen={isSignOutDialogOpen}
+        title="Выход из аккаунта"
+        message="Вы уверены, что хотите выйти из аккаунта?"
+        confirmText="Да, выйти"
+        cancelText="Отмена"
+        onConfirm={confirmSignOut}
+        onCancel={cancelSignOut}
+      />
+
       {/* Шапка страницы */}
       <header className="bg-blue-600 dark:bg-blue-800 text-white py-4 shadow-md">
         <div className="container mx-auto px-4">
@@ -300,7 +358,7 @@ export default function DictionaryPage() {
             <h1 className="text-3xl font-bold">WriteProAI</h1>
 
             {/* Правая часть шапки с фиксированной структурой */}
-            <div className="flex items-center justify-end">
+            <div className="flex items-center">
               {/* Навигационные вкладки с фиксированной шириной */}
               <div className="flex items-center space-x-1 w-[350px] justify-center">
                 <Button
@@ -351,6 +409,85 @@ export default function DictionaryPage() {
                   </Link>
                 </Button>
               </div>
+
+              {/* Блок авторизации и темы */}
+              <div className="flex items-center ml-12">
+                {memoizedUser ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="focus:outline-none">
+                        {memoizedUser.photoURL ? (
+                          <img
+                            src={memoizedUser.photoURL}
+                            alt="User avatar"
+                            className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-gray-800 cursor-pointer hover:opacity-90 transition-opacity"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full bg-blue-400 dark:bg-blue-500 flex items-center justify-center text-white font-semibold text-sm uppercase cursor-pointer hover:opacity-90 transition-opacity">
+                            {memoizedUser.displayName && !memoizedUser.providerData?.[0]?.providerId?.includes('google')
+                              ? memoizedUser.displayName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()
+                              : memoizedUser.email
+                                ? memoizedUser.email.substring(0, 2).toUpperCase()
+                                : "??"}
+                          </div>
+                        )}
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      {memoizedUser.displayName && (
+                        <DropdownMenuLabel className="font-normal text-sm truncate">
+                          {memoizedUser.displayName}
+                        </DropdownMenuLabel>
+                      )}
+                      {memoizedUser.email && (
+                        <DropdownMenuLabel className="font-normal text-xs truncate text-gray-500 dark:text-gray-400">
+                          {memoizedUser.email}
+                        </DropdownMenuLabel>
+                      )}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/account" className="flex items-center cursor-pointer">
+                          <User className="h-4 w-4 mr-2" />
+                          Настройки аккаунта
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onClick={handleSignOutClick} className="text-red-500 dark:text-red-400 cursor-pointer">
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Выйти
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
+                  >
+                    <Link href="/auth">
+                      <User className="h-4 w-4 mr-2" />
+                      Войти
+                    </Link>
+                  </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleTheme}
+                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg p-2 ml-2"
+                  aria-label="Переключить тему"
+                >
+                  {isDarkMode ? (
+                    <Sun className="h-5 w-5 text-yellow-400 transition-transform hover:rotate-45" />
+                  ) : (
+                    <Moon className="h-5 w-5 text-white transition-transform hover:-rotate-12" />
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -369,10 +506,11 @@ export default function DictionaryPage() {
             </div>
 
             {!memoizedUser && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg mb-6">
-                <p className="text-black dark:text-white">
-                  Вы должны <Link href="/auth" className="text-blue-600 dark:text-blue-400 hover:underline">войти</Link>, чтобы использовать словарь исключений.
-                </p>
+              <div className="text-center py-8">
+                <p className="mb-4">Войдите в аккаунт, чтобы просмотреть словарь исключений</p>
+                <Button asChild>
+                  <Link href="/auth">Войти</Link>
+                </Button>
               </div>
             )}
 

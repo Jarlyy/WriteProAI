@@ -303,7 +303,11 @@ export default function SavedTextDetailPage() {
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-blue-400 dark:bg-blue-500 flex items-center justify-center text-white font-semibold text-sm uppercase cursor-pointer hover:opacity-90 transition-opacity">
-                            {user.email ? user.email.substring(0, 2) : "??"}
+                            {user.displayName && !user.providerData?.[0]?.providerId?.includes('google')
+                              ? user.displayName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()
+                              : user.email
+                                ? user.email.substring(0, 2).toUpperCase()
+                                : "??"}
                           </div>
                         )}
                       </button>
@@ -311,8 +315,13 @@ export default function SavedTextDetailPage() {
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
                       <DropdownMenuSeparator />
+                      {user.displayName && (
+                        <DropdownMenuLabel className="font-normal text-sm truncate">
+                          {user.displayName}
+                        </DropdownMenuLabel>
+                      )}
                       {user.email && (
-                        <DropdownMenuLabel className="font-normal text-xs truncate">
+                        <DropdownMenuLabel className="font-normal text-xs truncate text-gray-500 dark:text-gray-400">
                           {user.email}
                         </DropdownMenuLabel>
                       )}

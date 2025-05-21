@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { Textarea } from "../components/ui/textarea";
 import { Button } from "../components/ui/button";
+import { Progress } from "../components/ui/progress";
 import { Moon, Sun, Copy, Check, LogOut, X, Trash2, FileText, Clock, Home, User, BookOpen } from "lucide-react";
 import { SaveText } from "../components/firestore/save-text";
 import { signOut, onAuthStateChanged } from "firebase/auth";
@@ -89,6 +90,8 @@ export default function HomePage() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
+  const [checkProgress, setCheckProgress] = useState(0);
 
   // Используем контекст авторизации с мемоизацией для предотвращения ненужных ререндеров
   const { user, loading: authLoading } = useAuth();
@@ -742,9 +745,30 @@ export default function HomePage() {
     console.log("Проверка авторизации перед проверкой текста...");
     console.log("Статус авторизации:", auth.currentUser ? "Авторизован" : "Не авторизован");
 
+    // Сбрасываем прогресс и устанавливаем флаг проверки
+    setIsChecking(true);
+    setCheckProgress(0);
+
+    // Функция для плавного обновления прогресса
+    const updateProgress = (targetValue, duration = 500) => {
+      const step = 1;
+      const interval = duration / ((targetValue - checkProgress) / step);
+
+      const timer = setInterval(() => {
+        setCheckProgress(prev => {
+          if (prev >= targetValue) {
+            clearInterval(timer);
+            return targetValue;
+          }
+          return prev + step;
+        });
+      }, interval);
+    };
+
     try {
       // Сохраняем текущий текст как проверяемый
       setCheckedText(text);
+      updateProgress(10); // Начальный прогресс
 
       // Передаем ID пользователя в API-запрос, если пользователь авторизован
       const userId = memoizedUser ? memoizedUser.uid : null;
@@ -773,6 +797,8 @@ export default function HomePage() {
         console.error('Ошибка при загрузке словаря пользователя из sessionStorage:', error);
       }
 
+      updateProgress(20); // Прогресс после загрузки словаря
+
       const response = await fetch('/api/check', {
         method: 'POST',
         headers: {
@@ -788,7 +814,11 @@ export default function HomePage() {
 
       if (!response.ok) throw new Error('Ошибка проверки');
 
+      updateProgress(40); // Прогресс после получения ответа от сервера
+
       const data = await response.json();
+
+      updateProgress(60); // Прогресс после парсинга JSON
 
       // Выводим в консоль все ошибки для отладки
       console.log('API response data:', data.matches);
@@ -1007,6 +1037,8 @@ export default function HomePage() {
       // Округляем значение читаемости до целого числа
       setReadabilityScore(Math.round(data.readabilityScore * 100));
 
+      updateProgress(75); // Прогресс после обработки ошибок
+
       // Сохраняем детальные метрики читаемости
       if (data.readabilityMetrics) {
         // Ограничиваем лексическое разнообразие до 100%
@@ -1027,6 +1059,8 @@ export default function HomePage() {
       // Генерируем исправленный текст
       const corrected = generateCorrectedText(text, allErrors);
       setCorrectedText(corrected);
+
+      updateProgress(85); // Прогресс после генерации исправленного текста
 
       // Автоматически сохраняем историю проверки
       console.log("Попытка автоматического сохранения истории проверки...");
@@ -1057,9 +1091,20 @@ export default function HomePage() {
           console.log("Функция autoSaveCheckHistory выполнена успешно");
         } catch (saveError) {
           console.error("Ошибка при сохранении истории:", saveError);
+        } finally {
+          // Завершаем прогресс и сбрасываем флаг проверки
+          updateProgress(100, 800); // Более длительная анимация для завершения
+          setTimeout(() => {
+            setIsChecking(false);
+          }, 1200); // Увеличенная задержка для плавного завершения
         }
       } else {
         console.log("Пользователь не авторизован (из контекста), история не сохранена");
+        // Завершаем прогресс и сбрасываем флаг проверки
+        updateProgress(100, 800); // Более длительная анимация для завершения
+        setTimeout(() => {
+          setIsChecking(false);
+        }, 1200); // Увеличенная задержка для плавного завершения
       }
     } catch (error) {
       console.error('Ошибка:', error);
@@ -1077,6 +1122,12 @@ export default function HomePage() {
       setSpellingErrors([]);
       setSemanticErrors([]);
       setOtherErrors([]);
+
+      // Завершаем прогресс и сбрасываем флаг проверки при ошибке
+      updateProgress(100, 800); // Более длительная анимация для завершения
+      setTimeout(() => {
+        setIsChecking(false);
+      }, 1200); // Увеличенная задержка для плавного завершения
     }
   };
 
@@ -1167,7 +1218,11 @@ export default function HomePage() {
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-blue-400 dark:bg-blue-500 flex items-center justify-center text-white font-semibold text-sm uppercase cursor-pointer hover:opacity-90 transition-opacity">
-                            {memoizedUser.email ? memoizedUser.email.substring(0, 2) : "??"}
+                            {memoizedUser.displayName && !memoizedUser.providerData?.[0]?.providerId?.includes('google')
+                              ? memoizedUser.displayName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()
+                              : memoizedUser.email
+                                ? memoizedUser.email.substring(0, 2).toUpperCase()
+                                : "??"}
                           </div>
                         )}
                       </button>
@@ -1175,8 +1230,13 @@ export default function HomePage() {
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
                       <DropdownMenuSeparator />
+                      {memoizedUser.displayName && (
+                        <DropdownMenuLabel className="font-normal text-sm truncate">
+                          {memoizedUser.displayName}
+                        </DropdownMenuLabel>
+                      )}
                       {memoizedUser.email && (
-                        <DropdownMenuLabel className="font-normal text-xs truncate">
+                        <DropdownMenuLabel className="font-normal text-xs truncate text-gray-500 dark:text-gray-400">
                           {memoizedUser.email}
                         </DropdownMenuLabel>
                       )}
@@ -1256,12 +1316,34 @@ export default function HomePage() {
             </div>
 
             <div className="flex flex-col items-center gap-2 my-4">
-              <Button
-                onClick={checkText}
-                className="w-64 py-5 text-lg font-semibold bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-xl"
-              >
-                Проверить текст
-              </Button>
+              {isChecking ? (
+                <div className="w-[500px] space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-base text-gray-700 dark:text-gray-300 font-medium">Проверка текста...</span>
+                    <span className="text-base font-medium text-blue-600 dark:text-blue-400">{checkProgress}%</span>
+                  </div>
+                  <div className="relative pt-1">
+                    <Progress
+                      value={checkProgress}
+                      className="h-4 w-full rounded-lg"
+                      indicatorClassName={
+                        checkProgress < 30
+                          ? 'bg-blue-400 dark:bg-blue-500 transition-all duration-1000'
+                          : checkProgress < 70
+                            ? 'bg-blue-500 dark:bg-blue-600 transition-all duration-1000'
+                            : 'bg-blue-600 dark:bg-blue-700 transition-all duration-1000'
+                      }
+                    />
+                  </div>
+                </div>
+              ) : (
+                <Button
+                  onClick={checkText}
+                  className="w-[500px] py-5 text-lg font-semibold bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-xl"
+                >
+                  Проверить текст
+                </Button>
+              )}
               {text !== checkedText && checkedText && (
                 <span className="text-yellow-600 dark:text-yellow-400 text-sm">
                   Текст изменен после последней проверки

@@ -415,7 +415,11 @@ export default function SavedTextsPage() {
                           />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-blue-400 dark:bg-blue-500 flex items-center justify-center text-white font-semibold text-sm uppercase cursor-pointer hover:opacity-90 transition-opacity">
-                            {memoizedUser.email ? memoizedUser.email.substring(0, 2) : "??"}
+                            {memoizedUser.displayName && !memoizedUser.providerData?.[0]?.providerId?.includes('google')
+                              ? memoizedUser.displayName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()
+                              : memoizedUser.email
+                                ? memoizedUser.email.substring(0, 2).toUpperCase()
+                                : "??"}
                           </div>
                         )}
                       </button>
@@ -423,8 +427,13 @@ export default function SavedTextsPage() {
                     <DropdownMenuContent align="end" className="w-56">
                       <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
                       <DropdownMenuSeparator />
+                      {memoizedUser.displayName && (
+                        <DropdownMenuLabel className="font-normal text-sm truncate">
+                          {memoizedUser.displayName}
+                        </DropdownMenuLabel>
+                      )}
                       {memoizedUser.email && (
-                        <DropdownMenuLabel className="font-normal text-xs truncate">
+                        <DropdownMenuLabel className="font-normal text-xs truncate text-gray-500 dark:text-gray-400">
                           {memoizedUser.email}
                         </DropdownMenuLabel>
                       )}
@@ -487,10 +496,11 @@ export default function SavedTextsPage() {
             </div>
 
           {!memoizedUser && (
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg mb-6">
-              <p className="text-black dark:text-white">
-                Вы должны <Link href="/auth" className="text-blue-600 dark:text-blue-400 hover:underline">войти</Link>, чтобы просмотреть избранные тексты.
-              </p>
+            <div className="text-center py-8">
+              <p className="mb-4">Войдите в аккаунт, чтобы просмотреть избранные тексты</p>
+              <Button asChild>
+                <Link href="/auth">Войти</Link>
+              </Button>
             </div>
           )}
 

@@ -367,7 +367,11 @@ export default function AccountPage() {
                       />
                     ) : (
                       <div className="w-10 h-10 rounded-full bg-blue-400 dark:bg-blue-500 flex items-center justify-center text-white font-semibold text-sm uppercase cursor-pointer hover:opacity-90 transition-opacity">
-                        {user.email ? user.email.substring(0, 2) : "??"}
+                        {user.displayName && !user.providerData?.[0]?.providerId?.includes('google')
+                          ? user.displayName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()
+                          : user.email
+                            ? user.email.substring(0, 2).toUpperCase()
+                            : "??"}
                       </div>
                     )}
                   </div>
