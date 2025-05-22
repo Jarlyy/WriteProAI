@@ -4,23 +4,13 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { Textarea } from "../components/ui/textarea";
 import { Button } from "../components/ui/button";
 import { Progress } from "../components/ui/progress";
-import { Moon, Sun, Copy, Check, LogOut, X, Trash2, FileText, Clock, Home, User, BookOpen } from "lucide-react";
+import { Copy, Check, X } from "lucide-react";
 import { SaveText } from "../components/firestore/save-text";
-import { signOut, onAuthStateChanged } from "firebase/auth";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { auth, db } from "../lib/firebase-client";
-import { ConfirmDialog } from "../components/ui/confirm-dialog";
+import { db } from "../lib/firebase-client";
 import { autoSaveCheckHistory } from "../lib/auto-save-history";
 import { useAuth } from "../contexts/auth-context";
-import Link from "next/link";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../components/ui/dropdown-menu";
+import { AppLayout } from "../components/app-layout";
 
 // Словарь популярных слов и их веса для улучшения исправления ошибок
 const POPULAR_WORDS = {
@@ -87,9 +77,7 @@ export default function HomePage() {
     complexWordsPercentage: 0,
     lexicalDiversity: 0
   });
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [isSignOutDialogOpen, setIsSignOutDialogOpen] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [checkProgress, setCheckProgress] = useState(0);
 
@@ -99,22 +87,7 @@ export default function HomePage() {
   // Мемоизируем пользователя, чтобы избежать ненужных ререндеров
   const memoizedUser = useMemo(() => user, [user?.uid]);
 
-  // Проверяем текущую тему при загрузке компонента
-  useEffect(() => {
-    // Проверяем предпочтения пользователя
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    // Проверяем сохраненную тему
-    const savedTheme = localStorage.getItem("theme");
 
-    // Устанавливаем начальное состояние
-    if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add("dark");
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove("dark");
-    }
-  }, []);
 
   // Проверяем словарь пользователя при загрузке компонента
   useEffect(() => {
@@ -169,20 +142,7 @@ export default function HomePage() {
 
   // Состояние аутентификации отслеживается через контекст AuthProvider
 
-  // Функция для переключения темы
-  const toggleTheme = () => {
-    if (isDarkMode) {
-      // Переключаемся на светлую тему
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-      setIsDarkMode(false);
-    } else {
-      // Переключаемся на темную тему
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-      setIsDarkMode(true);
-    }
-  };
+
 
   // Функция для копирования текста
   const copyToClipboard = (text) => {
@@ -242,29 +202,7 @@ export default function HomePage() {
     });
   };
 
-  // Функция для открытия диалога подтверждения выхода
-  const handleSignOutClick = () => {
-    setIsSignOutDialogOpen(true);
-  };
 
-  // Функция для подтверждения выхода из аккаунта
-  const confirmSignOut = async () => {
-    try {
-      if (auth) {
-        await signOut(auth);
-        console.log("Пользователь вышел из системы");
-      }
-    } catch (error) {
-      console.error("Ошибка при выходе из аккаунта:", error);
-    } finally {
-      setIsSignOutDialogOpen(false);
-    }
-  };
-
-  // Функция для отмены выхода из аккаунта
-  const cancelSignOut = () => {
-    setIsSignOutDialogOpen(false);
-  };
 
   // Функция для анализа контекста и выбора наиболее подходящего варианта исправления
   const getBestSuggestion = useCallback((word, suggestions, offset, fullText) => {
@@ -1132,168 +1070,13 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Диалог подтверждения выхода */}
-      <ConfirmDialog
-        isOpen={isSignOutDialogOpen}
-        title="Выход из аккаунта"
-        message="Вы уверены, что хотите выйти из аккаунта?"
-        confirmText="Да, выйти"
-        cancelText="Отмена"
-        onConfirm={confirmSignOut}
-        onCancel={cancelSignOut}
-      />
-
-      {/* Шапка страницы */}
-      <header className="bg-blue-600 dark:bg-blue-800 text-white py-4 shadow-md">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center">
-            {/* Логотип */}
-            <h1 className="text-3xl font-bold mr-6">WriteProAI</h1>
-
-            {/* Навигационные вкладки рядом с логотипом */}
-            <div className="flex items-center space-x-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="text-white bg-white/20 hover:bg-white/30 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
-              >
-                <Link href="/">
-                  <Home className="h-4 w-4 mr-2" />
-                  Главная
-                </Link>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
-              >
-                <Link href="/saved-texts">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Избранное
-                </Link>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
-              >
-                <Link href="/check-history">
-                  <Clock className="h-4 w-4 mr-2" />
-                  История
-                </Link>
-              </Button>
-
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
-              >
-                <Link href="/dictionary">
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  Словарь
-                </Link>
-              </Button>
-            </div>
-
-            {/* Правая часть шапки */}
-            <div className="flex items-center ml-auto">
-
-              {/* Блок авторизации и темы */}
-              <div className="flex items-center ml-12">
-                {memoizedUser ? (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button className="focus:outline-none">
-                        {memoizedUser.photoURL ? (
-                          <img
-                            src={memoizedUser.photoURL}
-                            alt="User avatar"
-                            className="w-10 h-10 rounded-full object-cover border-2 border-white dark:border-gray-800 cursor-pointer hover:opacity-90 transition-opacity"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-blue-400 dark:bg-blue-500 flex items-center justify-center text-white font-semibold text-sm uppercase cursor-pointer hover:opacity-90 transition-opacity">
-                            {memoizedUser.displayName && !memoizedUser.providerData?.[0]?.providerId?.includes('google')
-                              ? memoizedUser.displayName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()
-                              : memoizedUser.email
-                                ? memoizedUser.email.substring(0, 2).toUpperCase()
-                                : "??"}
-                          </div>
-                        )}
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuLabel>Мой аккаунт</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {memoizedUser.displayName && (
-                        <DropdownMenuLabel className="font-normal text-sm truncate">
-                          {memoizedUser.displayName}
-                        </DropdownMenuLabel>
-                      )}
-                      {memoizedUser.email && (
-                        <DropdownMenuLabel className="font-normal text-xs truncate text-gray-500 dark:text-gray-400">
-                          {memoizedUser.email}
-                        </DropdownMenuLabel>
-                      )}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link href="/account" className="flex items-center cursor-pointer">
-                          <User className="h-4 w-4 mr-2" />
-                          Настройки аккаунта
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleSignOutClick} className="text-red-500 dark:text-red-400 cursor-pointer">
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Выйти
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    asChild
-                    className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg px-3 py-2"
-                  >
-                    <Link href="/auth">
-                      <User className="h-4 w-4 mr-2" />
-                      Войти
-                    </Link>
-                  </Button>
-                )}
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleTheme}
-                  className="text-white hover:bg-white/10 transition-all duration-300 flex items-center rounded-lg p-2 ml-2"
-                  aria-label="Переключить тему"
-                >
-                  {isDarkMode ? (
-                    <Sun className="h-5 w-5 text-yellow-400 transition-transform hover:rotate-45" />
-                  ) : (
-                    <Moon className="h-5 w-5 text-white transition-transform hover:-rotate-12" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Основное содержимое */}
-      <main className="flex-grow py-6">
-        <div className="container mx-auto px-4 max-w-4xl">
-          <h2 className="text-2xl font-bold mb-2 text-black dark:text-white">Проверка письменных работ</h2>
-
-          <div className="grid gap-3">
+    <AppLayout
+      title="Проверка письменных работ"
+      breadcrumbs={[
+        { label: "Главная" }
+      ]}
+    >
+        <div className="grid gap-3">
             <div className="relative">
               <Textarea
                 value={text}
@@ -1799,8 +1582,6 @@ export default function HomePage() {
               </div>
             )}
           </div>
-        </div>
-      </main>
-    </div>
+    </AppLayout>
   );
 }

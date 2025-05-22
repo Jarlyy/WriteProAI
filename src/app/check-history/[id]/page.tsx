@@ -208,10 +208,10 @@ export default function CheckHistoryDetailPage() {
         onCancel={cancelSignOut}
       />
 
-      {/* Шапка страницы */}
-      <header className="bg-blue-600 dark:bg-blue-800 text-white py-4 shadow-md">
+      {/* Шапка страницы - фиксированная высота */}
+      <header className="bg-blue-600 dark:bg-blue-800 text-white py-4 shadow-md flex-shrink-0">
         <div className="container mx-auto px-4">
-          <div className="flex items-center w-full">
+          <div className="flex items-center w-full h-12">
             {/* Логотип */}
             <h1 className="text-3xl font-bold mr-6">WriteProAI</h1>
 
@@ -348,9 +348,9 @@ export default function CheckHistoryDetailPage() {
         </div>
       </header>
 
-      {/* Основное содержимое */}
-      <main className="flex-grow py-6">
-        <div className="container mx-auto px-4 max-w-4xl">
+      {/* Основное содержимое - фиксированная структура */}
+      <main className="flex-grow py-6 min-h-0">
+        <div className="container mx-auto px-4 max-w-4xl h-full">
           <div className="mb-4">
             <Button
               variant="outline"
