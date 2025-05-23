@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db, auth } from "../../lib/firebase-client";
-import { Button } from "../../components/ui/button";
+import { db, auth } from "@/lib/firebase-client";
+import { Button } from "@/components/ui/button";
 
 // Проверяем инициализацию Firebase при монтировании компонента
 console.log("SaveText компонент: Firestore и Auth доступны?", {

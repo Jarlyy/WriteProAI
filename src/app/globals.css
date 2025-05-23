@@ -4,60 +4,65 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* Основная цветовая схема (светлая тема) */
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 217 91% 60%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.5rem;
-    --scrollbar-thumb: 0 0% 100%;
-    --scrollbar-track: 240 10% 96%;
-    --scrollbar-thumb-hover: 240 10% 90%;
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221 83% 53%;
+    --radius: 0.75rem;
+
+    /* Полоса прокрутки */
+    --scrollbar-thumb: 217 91% 60%;
+    --scrollbar-track: 210 40% 96.1%;
+    --scrollbar-thumb-hover: 221 83% 53%;
+
+    /* Боковая панель */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 217 91% 60%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 221 83% 53%;
   }
 
   body {
     background: var(--background);
     color: var(--foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 
   /* Современные стили для полосы прокрутки */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
 
   ::-webkit-scrollbar-track {
     background: hsl(var(--scrollbar-track));
-    border-radius: 4px;
+    border-radius: 8px;
   }
 
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--scrollbar-thumb));
-    border-radius: 4px;
+    border-radius: 8px;
     transition: background-color 0.3s ease;
-    border: 1px solid rgba(128, 128, 128, 0.2);
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -115,36 +120,41 @@
     justify-content: center;
   }
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    /* Основная цветовая схема (темная тема) */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 19% 27%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 19% 27%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 221 83% 53%;
+    --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --scrollbar-thumb: 240 10% 8%;
-    --scrollbar-track: 240 10% 16%;
-    --scrollbar-thumb-hover: 240 10% 12%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 19% 27%;
+    --input: 217 19% 27%;
+    --ring: 224.3 76.3% 48%;
+
+    /* Полоса прокрутки */
+    --scrollbar-thumb: 221 83% 53%;
+    --scrollbar-track: 217 19% 27%;
+    --scrollbar-thumb-hover: 217 91% 60%;
+
+    /* Боковая панель */
+    --sidebar-background: 223 47% 14%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 222 47% 11%;
+    --sidebar-accent: 221 83% 53%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 19% 27%;
+    --sidebar-ring: 224.3 76.3% 48%;
   }
 }
 
@@ -153,5 +163,95 @@
 @layer base {
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Современные карточки с тенями */
+  .card-modern {
+    @apply bg-card rounded-xl border border-border/40 shadow-sm transition-all duration-200 hover:shadow-md;
+  }
+
+  .card-modern-hover {
+    @apply bg-card rounded-xl border border-border/40 shadow-sm transition-all duration-200 hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5;
+  }
+
+  /* Градиентные кнопки */
+  .btn-gradient {
+    @apply bg-gradient-to-r from-primary to-accent text-primary-foreground hover:brightness-110 transition-all duration-300;
+  }
+
+  .btn-gradient-subtle {
+    @apply bg-gradient-to-r from-secondary to-secondary/80 text-secondary-foreground hover:brightness-105 transition-all duration-300;
+  }
+
+  /* Анимированные элементы */
+  .animate-fade-in {
+    @apply opacity-0 transition-opacity duration-500;
+    animation: fadeIn 0.5s ease-in-out forwards;
+  }
+
+  .animate-slide-in {
+    @apply opacity-0 transition-all duration-500;
+    animation: slideIn 0.5s ease-out forwards;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(1rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Улучшенные поля ввода */
+  .input-modern {
+    @apply bg-background border-input rounded-lg focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all duration-200;
+  }
+
+  /* Улучшенные заголовки */
+  .heading-xl {
+    @apply text-3xl md:text-4xl font-bold tracking-tight;
+  }
+
+  .heading-lg {
+    @apply text-2xl md:text-3xl font-bold tracking-tight;
+  }
+
+  .heading-md {
+    @apply text-xl md:text-2xl font-semibold;
+  }
+
+  .heading-sm {
+    @apply text-lg md:text-xl font-semibold;
+  }
+
+  /* Улучшенные контейнеры */
+  .container-xl {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-lg {
+    @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-md {
+    @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .container-sm {
+    @apply max-w-4xl mx-auto px-4 sm:px-6 lg:px-8;
   }
 }

@@ -1,5 +1,5 @@
 import { collection, addDoc } from "firebase/firestore";
-import { db, auth } from "./firebase-client";
+import { db, auth } from "@/lib/firebase-client";
 
 // Интерфейс для метрик читаемости
 export interface ReadabilityMetrics {

@@ -1,16 +1,16 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { Textarea } from "../components/ui/textarea";
-import { Button } from "../components/ui/button";
-import { Progress } from "../components/ui/progress";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { Copy, Check, X } from "lucide-react";
-import { SaveText } from "../components/firestore/save-text";
+import { SaveText } from "@/components/firestore/save-text";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db, auth } from "../lib/firebase-client";
-import { autoSaveCheckHistory } from "../lib/auto-save-history";
-import { useAuth } from "../contexts/auth-context";
-import { AppLayout } from "../components/app-layout";
+import { db, auth } from "@/lib/firebase-client";
+import { autoSaveCheckHistory } from "@/lib/auto-save-history";
+import { useAuth } from "@/contexts/auth-context";
+import { AppLayout } from "@/components/app-layout";
 
 // Словарь популярных слов и их веса для улучшения исправления ошибок
 const POPULAR_WORDS = {
@@ -1076,83 +1076,95 @@ export default function HomePage() {
         { label: "Главная" }
       ]}
     >
-        <div className="grid gap-3 max-w-6xl mx-auto w-full">
-            <div className="relative">
-              <Textarea
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Введите текст для проверки орфографии, пунктуации и читаемости... Например: 'Я хотел пойти в кино но у меня не было времени.'"
-                className="min-h-[300px] p-3 text-base border-2 border-blue-400/50 dark:border-blue-600/50 rounded-xl shadow-md focus:border-blue-600 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-400/50 dark:focus:ring-blue-600/50 focus:shadow-lg transition-all duration-300 bg-white dark:bg-gray-900 resize-y max-w-4xl w-full mx-auto"
-                style={{
-                  boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
-                }}
-              />
-              {text && (
-                <button
-                  type="button"
-                  onClick={quickClearText}
-                  className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none bg-white dark:bg-gray-800 rounded-full p-1"
-                  title="Очистить текст"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
+      <div className="container-lg">
+        <div className="mb-8 animate-fade-in">
+          <h1 className="heading-xl text-center mb-3 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            WriteProAI
+          </h1>
+          <p className="text-center text-lg text-muted-foreground max-w-2xl mx-auto">
+            Интеллектуальная проверка текста с исправлением ошибок, анализом читаемости и улучшением стиля
+          </p>
+        </div>
 
-            <div className="flex flex-col items-center gap-2 my-4">
-              {isChecking ? (
-                <div className="w-[380px] space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-base text-gray-700 dark:text-gray-300 font-medium">Проверка текста...</span>
-                    <span className="text-base font-medium text-blue-600 dark:text-blue-400">{checkProgress}%</span>
-                  </div>
-                  <div className="relative pt-1">
-                    <Progress
-                      value={checkProgress}
-                      className="h-4 w-full rounded-lg"
-                      indicatorClassName={
-                        checkProgress < 30
-                          ? 'bg-blue-400 dark:bg-blue-500 transition-all duration-1000'
-                          : checkProgress < 70
-                            ? 'bg-blue-500 dark:bg-blue-600 transition-all duration-1000'
-                            : 'bg-blue-600 dark:bg-blue-700 transition-all duration-1000'
-                      }
-                    />
-                  </div>
+        <div className="grid gap-6 max-w-4xl mx-auto w-full">
+          <div className="relative card-modern p-1 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-accent/5 rounded-xl"></div>
+            <Textarea
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Введите текст для проверки орфографии, пунктуации и читаемости... Например: 'Я хотел пойти в кино но у меня не было времени.'"
+              className="min-h-[300px] p-4 text-base rounded-lg shadow-inner-soft focus:border-primary focus:ring-2 focus:ring-primary/30 transition-all duration-300 bg-card resize-y w-full font-ui"
+            />
+            {text && (
+              <button
+                type="button"
+                onClick={quickClearText}
+                className="absolute top-4 right-4 text-muted-foreground hover:text-foreground focus:outline-none bg-card/80 backdrop-blur-sm rounded-full p-1.5 shadow-sm hover:shadow transition-all duration-200"
+                title="Очистить текст"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-col items-center gap-3 my-4">
+            {isChecking ? (
+              <div className="w-full max-w-md space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-base font-medium">Проверка текста...</span>
+                  <span className="text-base font-medium text-primary">{checkProgress}%</span>
                 </div>
-              ) : (
-                <Button
-                  onClick={checkText}
-                  className="w-[380px] py-4 text-base font-semibold bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-xl"
-                >
-                  Проверить текст
-                </Button>
-              )}
-              {text !== checkedText && checkedText && (
-                <span className="text-yellow-600 dark:text-yellow-400 text-sm">
-                  Текст изменен после последней проверки
-                </span>
-              )}
-            </div>
+                <div className="relative">
+                  <Progress
+                    value={checkProgress}
+                    className="h-3 w-full rounded-full overflow-hidden"
+                    indicatorClassName={
+                      checkProgress < 30
+                        ? 'bg-gradient-to-r from-primary/70 to-primary transition-all duration-1000'
+                        : checkProgress < 70
+                          ? 'bg-gradient-to-r from-primary/80 to-primary transition-all duration-1000'
+                          : 'bg-gradient-to-r from-primary to-accent transition-all duration-1000'
+                    }
+                  />
+                </div>
+              </div>
+            ) : (
+              <Button
+                onClick={checkText}
+                className="w-full max-w-md py-6 text-base font-semibold btn-gradient rounded-xl shadow-soft-lg hover:shadow-soft-xl transition-all duration-300 transform hover:-translate-y-1"
+              >
+                Проверить текст
+              </Button>
+            )}
+            {text !== checkedText && checkedText && (
+              <span className="text-yellow-600 dark:text-yellow-400 text-sm font-medium">
+                Текст изменен после последней проверки
+              </span>
+            )}
+          </div>
 
             {readabilityScore > 0 && (
-              <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20 space-y-4">
-                <h2 className="font-semibold mb-2 text-black dark:text-white">Читаемость текста:</h2>
+              <div className="card-modern p-6 space-y-5 max-w-4xl mx-auto w-full">
+                <h2 className="heading-md text-primary dark:text-primary">Читаемость текста</h2>
 
                 {/* Общая оценка читаемости */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-black dark:text-white">
-                    <span>Общая оценка читаемости</span>
-                    <span>{Math.round(readabilityScore)}%</span>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Общая оценка читаемости</span>
+                    <span className="font-bold text-lg">{Math.round(readabilityScore)}%</span>
                   </div>
-                  <div className="relative pt-1">
-                    <div className="w-full h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div className="relative">
+                    <div className="w-full h-8 bg-secondary dark:bg-secondary rounded-full overflow-hidden shadow-inner-soft">
                       <div
-                        className="h-full bg-blue-600 dark:bg-blue-500 rounded-full transition-all duration-500"
+                        className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all duration-500 flex items-center justify-end pr-3"
                         style={{ width: `${Math.round(readabilityScore)}%` }}
-                      ></div>
+                      >
+                        {readabilityScore > 30 && (
+                          <span className="text-xs font-bold text-white">{Math.round(readabilityScore)}%</span>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex justify-between mt-1 text-xs text-gray-600 dark:text-gray-400">
+                    <div className="flex justify-between mt-1 text-xs text-muted-foreground">
                       <span>0%</span>
                       <span>25%</span>
                       <span>50%</span>
@@ -1163,56 +1175,78 @@ export default function HomePage() {
                 </div>
 
                 {/* Детальные метрики */}
-                <details className="mt-2">
-                  <summary className="cursor-pointer font-semibold text-black dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                    Детальные метрики читаемости
+                <details className="mt-4 group">
+                  <summary className="cursor-pointer font-medium text-primary hover:text-primary/80 transition-colors flex items-center">
+                    <span>Детальные метрики читаемости</span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="ml-2 transition-transform duration-200 group-open:rotate-180"
+                    >
+                      <path d="m6 9 6 6 6-6"/>
+                    </svg>
                   </summary>
-                  <div className="mt-3 space-y-4">
+                  <div className="mt-4 space-y-6 pl-1">
                     {/* Индекс Флеша-Кинкейда */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-black dark:text-white">
-                        <span className="text-sm">Индекс Флеша-Кинкейда</span>
-                        <span className="text-sm">{readabilityMetrics.fleschKincaid}</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Индекс Флеша-Кинкейда</span>
+                        <span className="text-sm font-bold">{readabilityMetrics.fleschKincaid}</span>
                       </div>
-                      <div className="relative pt-1">
-                        <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="relative">
+                        <div className="w-full h-3 bg-secondary dark:bg-secondary rounded-full overflow-hidden shadow-inner-soft">
                           <div
-                            className="h-full bg-green-500 dark:bg-green-600 rounded-full transition-all duration-500"
+                            className="h-full bg-gradient-to-r from-green-400 to-green-500 rounded-full transition-all duration-500"
                             style={{ width: `${readabilityMetrics.fleschKincaid}%` }}
                           ></div>
                         </div>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <div className="text-xs text-muted-foreground">
                         Чем выше значение, тем легче читается текст. Учитывает длину предложений и слогов.
                       </div>
                     </div>
 
                     {/* Индекс Колмана-Лиау */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-black dark:text-white">
-                        <span className="text-sm">Индекс Колмана-Лиау</span>
-                        <span className="text-sm">{readabilityMetrics.colemanLiau}</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Индекс Колмана-Лиау</span>
+                        <span className="text-sm font-bold">{readabilityMetrics.colemanLiau}</span>
                       </div>
-                      <div className="relative pt-1">
-                        <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="relative">
+                        <div className="w-full h-3 bg-secondary dark:bg-secondary rounded-full overflow-hidden shadow-inner-soft">
                           <div
-                            className="h-full bg-purple-500 dark:bg-purple-600 rounded-full transition-all duration-500"
+                            className="h-full bg-gradient-to-r from-purple-400 to-purple-500 rounded-full transition-all duration-500"
                             style={{ width: `${readabilityMetrics.colemanLiau}%` }}
                           ></div>
                         </div>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <div className="text-xs text-muted-foreground">
                         Оценивает читаемость на основе количества символов, слов и предложений.
                       </div>
                     </div>
 
                     {/* Средняя длина предложения */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-black dark:text-white">
-                        <span className="text-sm">Средняя длина предложения</span>
-                        <span className="text-sm">{readabilityMetrics.avgSentenceLength} слов</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Средняя длина предложения</span>
+                        <span className="text-sm font-bold">{readabilityMetrics.avgSentenceLength} слов</span>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <div className="relative">
+                        <div className="w-full h-3 bg-secondary dark:bg-secondary rounded-full overflow-hidden shadow-inner-soft">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, readabilityMetrics.avgSentenceLength * 5)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
                         Оптимальная длина: 15-20 слов. {
                           readabilityMetrics.avgSentenceLength > 25
                             ? 'Рекомендуется сократить длину предложений для улучшения читаемости.'
@@ -1224,12 +1258,20 @@ export default function HomePage() {
                     </div>
 
                     {/* Средняя длина слова */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-black dark:text-white">
-                        <span className="text-sm">Средняя длина слова</span>
-                        <span className="text-sm">{readabilityMetrics.avgWordLength} символов</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Средняя длина слова</span>
+                        <span className="text-sm font-bold">{readabilityMetrics.avgWordLength} символов</span>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <div className="relative">
+                        <div className="w-full h-3 bg-secondary dark:bg-secondary rounded-full overflow-hidden shadow-inner-soft">
+                          <div
+                            className="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, readabilityMetrics.avgWordLength * 10)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
                         {
                           readabilityMetrics.avgWordLength > 7
                             ? 'В тексте много длинных слов. Попробуйте заменить их более короткими синонимами.'
@@ -1239,20 +1281,20 @@ export default function HomePage() {
                     </div>
 
                     {/* Процент сложных слов */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-black dark:text-white">
-                        <span className="text-sm">Процент сложных слов</span>
-                        <span className="text-sm">{readabilityMetrics.complexWordsPercentage}%</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Процент сложных слов</span>
+                        <span className="text-sm font-bold">{readabilityMetrics.complexWordsPercentage}%</span>
                       </div>
-                      <div className="relative pt-1">
-                        <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="relative">
+                        <div className="w-full h-3 bg-secondary dark:bg-secondary rounded-full overflow-hidden shadow-inner-soft">
                           <div
-                            className="h-full bg-red-500 dark:bg-red-600 rounded-full transition-all duration-500"
+                            className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500"
                             style={{ width: `${readabilityMetrics.complexWordsPercentage}%` }}
                           ></div>
                         </div>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <div className="text-xs text-muted-foreground">
                         Сложные слова - слова с 4 и более слогами. {
                           readabilityMetrics.complexWordsPercentage > 15
                             ? 'Рекомендуется уменьшить количество сложных слов.'
@@ -1262,20 +1304,20 @@ export default function HomePage() {
                     </div>
 
                     {/* Лексическое разнообразие */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-black dark:text-white">
-                        <span className="text-sm">Лексическое разнообразие</span>
-                        <span className="text-sm">{Math.min(100, readabilityMetrics.lexicalDiversity)}%</span>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium">Лексическое разнообразие</span>
+                        <span className="text-sm font-bold">{Math.min(100, readabilityMetrics.lexicalDiversity)}%</span>
                       </div>
-                      <div className="relative pt-1">
-                        <div className="w-full h-4 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div className="relative">
+                        <div className="w-full h-3 bg-secondary dark:bg-secondary rounded-full overflow-hidden shadow-inner-soft">
                           <div
-                            className="h-full bg-yellow-500 dark:bg-yellow-600 rounded-full transition-all duration-500"
+                            className="h-full bg-gradient-to-r from-purple-400 to-purple-500 rounded-full transition-all duration-500"
                             style={{ width: `${Math.min(100, readabilityMetrics.lexicalDiversity)}%` }}
                           ></div>
                         </div>
                       </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <div className="text-xs text-muted-foreground">
                         Отношение уникальных слов к общему количеству. {
                           readabilityMetrics.lexicalDiversity < 40
                             ? 'Рекомендуется использовать более разнообразную лексику.'
@@ -1290,18 +1332,79 @@ export default function HomePage() {
               </div>
             )}
 
+            {/* Секция с результатами проверки */}
+            {checkedText && errors.length > 0 && (
+              <div className="card-modern p-6 space-y-5 max-w-4xl mx-auto w-full mt-6">
+                <h2 className="heading-md text-primary dark:text-primary">Результаты проверки</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="card-modern-hover p-4">
+                    <h3 className="font-medium mb-2 flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-full bg-red-500"></span>
+                      Орфографические ошибки
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {spellingErrors.length > 0
+                        ? `Найдено ${spellingErrors.length} ошибок в написании слов`
+                        : "Орфографических ошибок не найдено"}
+                    </p>
+                  </div>
+
+                  <div className="card-modern-hover p-4">
+                    <h3 className="font-medium mb-2 flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-full bg-yellow-500"></span>
+                      Пунктуационные ошибки
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {commaErrors.length > 0
+                        ? `Найдено ${commaErrors.length} ошибок в пунктуации`
+                        : "Пунктуационных ошибок не найдено"}
+                    </p>
+                  </div>
+
+                  <div className="card-modern-hover p-4">
+                    <h3 className="font-medium mb-2 flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-full bg-purple-500"></span>
+                      Смысловые ошибки
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {semanticErrors.length > 0
+                        ? `Найдено ${semanticErrors.length} смысловых ошибок`
+                        : "Смысловых ошибок не найдено"}
+                    </p>
+                  </div>
+
+                  <div className="card-modern-hover p-4">
+                    <h3 className="font-medium mb-2 flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-full bg-orange-500"></span>
+                      Другие ошибки
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {otherErrors.length > 0
+                        ? `Найдено ${otherErrors.length} других ошибок`
+                        : "Других ошибок не найдено"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {checkedText && (
-              <div className="space-y-4">
+              <div className="space-y-4 mt-6">
                 {errors.length === 0 ? (
-                  <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20 mb-4">
-                    <h2 className="font-semibold mb-2 text-black dark:text-white text-center text-xl">Ошибок не найдено</h2>
+                  <div className="card-modern p-6 text-center">
+                    <h2 className="heading-md text-green-600 dark:text-green-400 mb-2">Ошибок не найдено</h2>
+                    <p className="text-muted-foreground">Текст написан грамотно и не содержит ошибок</p>
                   </div>
                 ) : (
                   <>
                     {spellingErrors.length > 0 && (
-                      <div className="border rounded-lg p-4 bg-red-50 dark:bg-red-900/20 mb-4">
-                        <h2 className="font-semibold mb-2 text-black dark:text-white">Орфографические ошибки:</h2>
-                        <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
+                      <div className="card-modern p-6 mb-4">
+                        <h2 className="heading-sm text-primary dark:text-primary mb-4 flex items-center gap-2">
+                          <span className="inline-block w-3 h-3 rounded-full bg-red-500"></span>
+                          Орфографические ошибки:
+                        </h2>
+                        <ul className="list-disc pl-5 space-y-2 marker:text-red-500">
                           {spellingErrors.map((error, index) => (
                             <li key={index}>
                               {error.message}
@@ -1407,9 +1510,12 @@ export default function HomePage() {
                 )}
 
                 {commaErrors.length > 0 && (
-                  <div className="border rounded-lg p-4 bg-yellow-50 dark:bg-yellow-900/20">
-                    <h2 className="font-semibold mb-2 text-black dark:text-white">Пунктуационные ошибки:</h2>
-                    <ul className="list-disc pl-5 space-y-3 text-black dark:text-white">
+                  <div className="card-modern p-6">
+                    <h2 className="heading-sm text-primary dark:text-primary mb-4 flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-full bg-yellow-500"></span>
+                      Пунктуационные ошибки:
+                    </h2>
+                    <ul className="list-disc pl-5 space-y-3 marker:text-yellow-500">
                       {commaErrors.map((error, index) => (
                         <li key={index}>
                           <div className="mb-1">{error.message}</div>
@@ -1457,9 +1563,12 @@ export default function HomePage() {
                 )}
 
                 {semanticErrors.length > 0 && (
-                  <div className="border rounded-lg p-4 bg-purple-50 dark:bg-purple-900/20">
-                    <h2 className="font-semibold mb-2 text-black dark:text-white">Смысловые и стилистические ошибки:</h2>
-                    <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
+                  <div className="card-modern p-6">
+                    <h2 className="heading-sm text-primary dark:text-primary mb-4 flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-full bg-purple-500"></span>
+                      Смысловые и стилистические ошибки:
+                    </h2>
+                    <ul className="list-disc pl-5 space-y-2 marker:text-purple-500">
                       {semanticErrors.map((error, index) => (
                         <li key={index}>
                           {error.message}
@@ -1476,9 +1585,12 @@ export default function HomePage() {
                 )}
 
                 {otherErrors.length > 0 && (
-                  <div className="border rounded-lg p-4 bg-orange-50 dark:bg-orange-900/20">
-                    <h2 className="font-semibold mb-2 text-black dark:text-white">Другие ошибки:</h2>
-                    <ul className="list-disc pl-5 space-y-1 text-black dark:text-white">
+                  <div className="card-modern p-6">
+                    <h2 className="heading-sm text-primary dark:text-primary mb-4 flex items-center gap-2">
+                      <span className="inline-block w-3 h-3 rounded-full bg-orange-500"></span>
+                      Другие ошибки:
+                    </h2>
+                    <ul className="list-disc pl-5 space-y-2 marker:text-orange-500">
                       {otherErrors.map((error, index) => (
                         <li key={index}>
                           {error.message}
@@ -1494,43 +1606,46 @@ export default function HomePage() {
                   </div>
                 )}
 
-                <div className="border rounded-lg p-4 bg-blue-50 dark:bg-blue-900/20">
-                  <div className="flex justify-between items-center mb-2">
-                    <h2 className="font-semibold text-black dark:text-white">Ошибки в тексте:</h2>
+                <div className="card-modern p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="heading-sm text-primary dark:text-primary flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                      </svg>
+                      Текст с выделенными ошибками
+                    </h2>
                     {text !== checkedText && (
-                      <span className="text-xs text-gray-600 dark:text-gray-400">
+                      <span className="text-xs text-muted-foreground px-2 py-1 bg-secondary rounded-md">
                         Показан результат последней проверки
                       </span>
                     )}
                   </div>
                   <div
-                    className="whitespace-pre-wrap text-black dark:text-white max-h-[200px] overflow-auto p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700"
-                    style={{
-                      boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
-                    }}
+                    className="whitespace-pre-wrap max-h-[250px] overflow-auto p-4 bg-card rounded-lg border border-border/40 shadow-inner-soft"
                   >
                     {highlightedText}
                   </div>
 
                   {/* Цветовые обозначения для подсветки ошибок */}
                   {errors.length > 0 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex flex-wrap gap-3">
+                    <div className="mt-4 pt-4 border-t border-border/40">
+                      <div className="flex flex-wrap gap-4">
                         <div className="flex items-center">
-                          <span className="inline-block w-4 h-4 bg-yellow-200 dark:bg-yellow-800 mr-2 rounded"></span>
-                          <span className="text-sm text-black dark:text-white">Пунктуационные ошибки</span>
+                          <span className="inline-block w-3 h-3 bg-yellow-500/30 dark:bg-yellow-500/30 mr-2 rounded-full"></span>
+                          <span className="text-sm text-muted-foreground">Пунктуационные ошибки</span>
                         </div>
                         <div className="flex items-center">
-                          <span className="inline-block w-4 h-4 bg-red-200 dark:bg-red-800 mr-2 rounded"></span>
-                          <span className="text-sm text-black dark:text-white">Орфографические ошибки</span>
+                          <span className="inline-block w-3 h-3 bg-red-500/30 dark:bg-red-500/30 mr-2 rounded-full"></span>
+                          <span className="text-sm text-muted-foreground">Орфографические ошибки</span>
                         </div>
                         <div className="flex items-center">
-                          <span className="inline-block w-4 h-4 bg-purple-200 dark:bg-purple-800 mr-2 rounded"></span>
-                          <span className="text-sm text-black dark:text-white">Смысловые ошибки</span>
+                          <span className="inline-block w-3 h-3 bg-purple-500/30 dark:bg-purple-500/30 mr-2 rounded-full"></span>
+                          <span className="text-sm text-muted-foreground">Смысловые ошибки</span>
                         </div>
                         <div className="flex items-center">
-                          <span className="inline-block w-4 h-4 bg-orange-200 dark:bg-orange-800 mr-2 rounded"></span>
-                          <span className="text-sm text-black dark:text-white">Другие ошибки</span>
+                          <span className="inline-block w-3 h-3 bg-orange-500/30 dark:bg-orange-500/30 mr-2 rounded-full"></span>
+                          <span className="text-sm text-muted-foreground">Другие ошибки</span>
                         </div>
                       </div>
                     </div>
@@ -1538,10 +1653,16 @@ export default function HomePage() {
                 </div>
 
                 {correctedText && (
-                  <div className="border rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
-                    <div className="flex justify-between items-center mb-2">
-                      <h2 className="font-semibold text-black dark:text-white">Исправленный текст:</h2>
-                      <div className="flex items-center space-x-2">
+                  <div className="card-modern p-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="heading-sm text-primary dark:text-primary flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                          <path d="m9 12 2 2 4-4"/>
+                        </svg>
+                        Исправленный текст
+                      </h2>
+                      <div className="flex items-center gap-2">
                         <SaveText
                           text={text}
                           correctedText={correctedText}
@@ -1553,25 +1674,22 @@ export default function HomePage() {
                           onClick={() => copyToClipboard(correctedText)}
                           className={`p-2 rounded-full transition-all duration-300 ${
                             isCopied
-                              ? "bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
-                              : "bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
+                              ? "bg-green-600 hover:bg-green-700 text-white"
+                              : "bg-primary hover:bg-primary/90 text-white"
                           }`}
                           title={isCopied ? "Скопировано!" : "Копировать текст"}
                           aria-label={isCopied ? "Скопировано!" : "Копировать текст"}
                         >
                           {isCopied ? (
-                            <Check className="h-4 w-4 text-white" />
+                            <Check className="h-4 w-4" />
                           ) : (
-                            <Copy className="h-4 w-4 text-white" />
+                            <Copy className="h-4 w-4" />
                           )}
                         </Button>
                       </div>
                     </div>
                     <div
-                      className="whitespace-pre-wrap text-black dark:text-white p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 max-h-[300px] overflow-auto"
-                      style={{
-                        boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
-                      }}
+                      className="whitespace-pre-wrap p-4 bg-card rounded-lg border border-border/40 shadow-inner-soft max-h-[300px] overflow-auto"
                     >
                       {correctedText}
                     </div>
