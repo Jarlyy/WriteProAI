@@ -3,14 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  Home, 
-  FileText, 
-  Clock, 
-  BookOpen, 
-  User, 
-  LogOut, 
-  Sun, 
+import {
+  Home,
+  FileText,
+  Clock,
+  BookOpen,
+  User,
+  LogOut,
+  Sun,
   Moon,
   Settings,
   ChevronUp,
@@ -116,18 +116,18 @@ export function AppSidebar({ isDarkMode, toggleTheme }: AppSidebarProps) {
         onCancel={cancelSignOut}
       />
 
-      <Sidebar variant="inset">
+      <Sidebar variant="inset" collapsible="icon">
         <SidebarHeader>
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton size="lg" asChild>
+              <SidebarMenuButton
+                size="lg"
+                asChild
+                tooltip="Главная страница"
+              >
                 <Link href="/">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-                    <FileText className="size-4" />
-                  </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">WriteProAI</span>
-                    <span className="truncate text-xs">Проверка текстов</span>
+                    <span className="truncate font-semibold text-blue-600 dark:text-blue-400">WriteProAI</span>
                   </div>
                 </Link>
               </SidebarMenuButton>
@@ -142,9 +142,13 @@ export function AppSidebar({ isDarkMode, toggleTheme }: AppSidebarProps) {
               <SidebarMenu>
                 {navigationItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={item.isActive}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={item.isActive}
+                      tooltip={item.title}
+                    >
                       <Link href={item.url}>
-                        <item.icon />
+                        <item.icon className="size-5" />
                         <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
@@ -159,16 +163,22 @@ export function AppSidebar({ isDarkMode, toggleTheme }: AppSidebarProps) {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton onClick={toggleTheme}>
-                    {isDarkMode ? <Sun /> : <Moon />}
+                  <SidebarMenuButton
+                    onClick={toggleTheme}
+                    tooltip={isDarkMode ? "Светлая тема" : "Темная тема"}
+                  >
+                    {isDarkMode ? <Sun className="size-5" /> : <Moon className="size-5" />}
                     <span>{isDarkMode ? "Светлая тема" : "Темная тема"}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 {user && (
                   <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip="Настройки аккаунта"
+                    >
                       <Link href="/account">
-                        <Settings />
+                        <Settings className="size-5" />
                         <span>Настройки аккаунта</span>
                       </Link>
                     </SidebarMenuButton>
@@ -193,10 +203,10 @@ export function AppSidebar({ isDarkMode, toggleTheme }: AppSidebarProps) {
                         <img
                           src={user.photoURL}
                           alt="User avatar"
-                          className="size-8 rounded-full object-cover"
+                          className="size-8 rounded-full object-cover min-w-8"
                         />
                       ) : (
-                        <div className="size-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                        <div className="size-8 min-w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
                           {user.displayName && !user.providerData?.[0]?.providerId?.includes('google')
                             ? user.displayName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()
                             : user.email
@@ -227,10 +237,10 @@ export function AppSidebar({ isDarkMode, toggleTheme }: AppSidebarProps) {
                           <img
                             src={user.photoURL}
                             alt="User avatar"
-                            className="size-8 rounded-full object-cover"
+                            className="size-8 rounded-full object-cover min-w-8"
                           />
                         ) : (
-                          <div className="size-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                          <div className="size-8 min-w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
                             {user.displayName && !user.providerData?.[0]?.providerId?.includes('google')
                               ? user.displayName.split(' ').map(name => name[0]).join('').substring(0, 2).toUpperCase()
                               : user.email
@@ -256,8 +266,8 @@ export function AppSidebar({ isDarkMode, toggleTheme }: AppSidebarProps) {
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={handleSignOutClick} 
+                    <DropdownMenuItem
+                      onClick={handleSignOutClick}
                       className="text-red-500 dark:text-red-400 cursor-pointer"
                     >
                       <LogOut className="mr-2 h-4 w-4" />
@@ -266,9 +276,13 @@ export function AppSidebar({ isDarkMode, toggleTheme }: AppSidebarProps) {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <SidebarMenuButton size="lg" asChild>
+                <SidebarMenuButton
+                  size="lg"
+                  asChild
+                  tooltip="Войти в аккаунт"
+                >
                   <Link href="/auth">
-                    <User className="size-8" />
+                    <User className="size-8 min-w-8" />
                     <div className="grid flex-1 text-left text-sm leading-tight">
                       <span className="truncate font-semibold">Войти</span>
                       <span className="truncate text-xs">В аккаунт</span>

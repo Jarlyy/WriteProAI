@@ -12,9 +12,8 @@ import { useAuth } from "../../contexts/auth-context";
 import { AppLayout } from "../../components/app-layout";
 
 // Проверяем инициализацию Firebase при монтировании компонента
-console.log("SavedTextsPage: Firestore и Auth доступны?", {
-  dbAvailable: Boolean(db),
-  authAvailable: Boolean(auth)
+console.log("SavedTextsPage: Firestore доступен?", {
+  dbAvailable: Boolean(db)
 });
 
 interface SavedText {
@@ -373,7 +372,6 @@ export default function SavedTextsPage() {
             </div>
           )}
           </div>
-        </div>
 
         {/* Модальное окно подтверждения удаления */}
         <ConfirmDialog

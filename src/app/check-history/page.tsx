@@ -14,7 +14,7 @@ export default function CheckHistoryPage() {
         { label: "История" }
       ]}
     >
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 max-w-5xl mx-auto w-full">
         <div className="mb-4">
           <p className="text-gray-600 dark:text-gray-400">
             Здесь сохраняются все проверенные вами тексты. История проверок сохраняется автоматически при каждой проверке текста.

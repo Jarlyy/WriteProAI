@@ -8,6 +8,7 @@ import { collection, query, where, getDocs, addDoc, deleteDoc, doc } from "fireb
 import { db } from "../../lib/firebase-client";
 import { ConfirmDialog } from "../../components/ui/confirm-dialog";
 import { AppLayout } from "../../components/app-layout";
+import Link from "next/link";
 
 // Интерфейс для элемента словаря
 interface DictionaryItem {
@@ -295,7 +296,7 @@ export default function DictionaryPage() {
         onCancel={() => setIsClearDictionaryDialogOpen(false)}
       />
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 max-w-5xl mx-auto w-full">
           <div className="mb-4">
             <p className="text-gray-600 dark:text-gray-400">
               Здесь вы можете добавить слова, которые не будут считаться ошибками при проверке текста.
@@ -334,7 +335,7 @@ export default function DictionaryPage() {
                     value={newWord}
                     onChange={(e) => setNewWord(e.target.value)}
                     placeholder="Введите слово для добавления"
-                    className="flex-grow px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    className="flex-grow px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     disabled={isAdding}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {

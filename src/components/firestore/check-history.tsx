@@ -134,7 +134,7 @@ export function SaveCheckHistory({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
               placeholder="Заголовок проверки"
               maxLength={50}
             />
@@ -328,7 +328,7 @@ export function CheckHistoryList() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-5xl mx-auto w-full">
       <div className="flex justify-end mb-4">
         <Button
           variant="destructive"
@@ -356,11 +356,11 @@ export function CheckHistoryList() {
           <div
             key={item.id}
             onClick={() => viewHistoryItem(item.id!)}
-            className="border rounded-lg p-4 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all cursor-pointer"
+            className="border rounded-lg p-3 bg-white dark:bg-gray-800 shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-all cursor-pointer"
           >
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="font-semibold text-lg hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{item.title}</h3>
+                <h3 className="font-semibold text-base hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{item.title}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {item.timestamp.toLocaleDateString()} {item.timestamp.toLocaleTimeString()}
                 </p>

@@ -7,7 +7,7 @@ import { Progress } from "../components/ui/progress";
 import { Copy, Check, X } from "lucide-react";
 import { SaveText } from "../components/firestore/save-text";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "../lib/firebase-client";
+import { db, auth } from "../lib/firebase-client";
 import { autoSaveCheckHistory } from "../lib/auto-save-history";
 import { useAuth } from "../contexts/auth-context";
 import { AppLayout } from "../components/app-layout";
@@ -1076,13 +1076,13 @@ export default function HomePage() {
         { label: "Главная" }
       ]}
     >
-        <div className="grid gap-3">
+        <div className="grid gap-3 max-w-6xl mx-auto w-full">
             <div className="relative">
               <Textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 placeholder="Введите текст для проверки орфографии, пунктуации и читаемости... Например: 'Я хотел пойти в кино но у меня не было времени.'"
-                className="min-h-[300px] p-4 text-lg border-2 border-blue-400/50 dark:border-blue-600/50 rounded-xl shadow-md focus:border-blue-600 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-400/50 dark:focus:ring-blue-600/50 focus:shadow-lg transition-all duration-300 bg-white dark:bg-gray-900 resize-y"
+                className="min-h-[300px] p-3 text-base border-2 border-blue-400/50 dark:border-blue-600/50 rounded-xl shadow-md focus:border-blue-600 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-400/50 dark:focus:ring-blue-600/50 focus:shadow-lg transition-all duration-300 bg-white dark:bg-gray-900 resize-y max-w-4xl w-full mx-auto"
                 style={{
                   boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
                 }}
@@ -1101,7 +1101,7 @@ export default function HomePage() {
 
             <div className="flex flex-col items-center gap-2 my-4">
               {isChecking ? (
-                <div className="w-[500px] space-y-3">
+                <div className="w-[380px] space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-base text-gray-700 dark:text-gray-300 font-medium">Проверка текста...</span>
                     <span className="text-base font-medium text-blue-600 dark:text-blue-400">{checkProgress}%</span>
@@ -1123,7 +1123,7 @@ export default function HomePage() {
               ) : (
                 <Button
                   onClick={checkText}
-                  className="w-[500px] py-5 text-lg font-semibold bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-xl"
+                  className="w-[380px] py-4 text-base font-semibold bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 rounded-xl"
                 >
                   Проверить текст
                 </Button>
@@ -1504,7 +1504,7 @@ export default function HomePage() {
                     )}
                   </div>
                   <div
-                    className="whitespace-pre-wrap text-black dark:text-white max-h-[300px] overflow-auto p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700"
+                    className="whitespace-pre-wrap text-black dark:text-white max-h-[200px] overflow-auto p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700"
                     style={{
                       boxShadow: 'inset 0 0 6px rgba(0, 0, 0, 0.1)'
                     }}

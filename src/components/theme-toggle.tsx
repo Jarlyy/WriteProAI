@@ -1,42 +1,34 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import { Button } from "../components/ui/button";
+import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
-  // Проверяем текущую тему при загрузке компонента
+  // Предотвращаем гидратацию
   useEffect(() => {
-    // Проверяем предпочтения пользователя
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    // Проверяем сохраненную тему
-    const savedTheme = localStorage.getItem("theme");
-
-    // Устанавливаем начальное состояние
-    if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
-      setIsDarkMode(true);
-      document.documentElement.classList.add("dark");
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove("dark");
-    }
+    setMounted(true);
   }, []);
 
   // Функция для переключения темы
   const toggleTheme = () => {
-    if (isDarkMode) {
-      // Переключаемся на светлую тему
-      document.documentElement.classList.remove("dark");
-      localStorage.setItem("theme", "light");
-      setIsDarkMode(false);
-    } else {
-      // Переключаемся на темную тему
-      document.documentElement.classList.add("dark");
-      localStorage.setItem("theme", "dark");
-      setIsDarkMode(true);
-    }
+    setTheme(theme === "dark" ? "light" : "dark");
   };
+
+  // Если компонент не смонтирован, не рендерим иконки
+  if (!mounted) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        className="rounded-full w-10 h-10"
+        disabled
+      />
+    );
+  }
 
   return (
     <Button
@@ -46,7 +38,7 @@ export function ThemeToggle() {
       aria-label="Переключить тему"
       className="rounded-full"
     >
-      {isDarkMode ? (
+      {theme === "dark" ? (
         // Иконка солнца для темной темы
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -82,7 +74,7 @@ export function ThemeToggle() {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="text-slate-800"
+          className="text-slate-800 dark:text-slate-200"
         >
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
         </svg>
